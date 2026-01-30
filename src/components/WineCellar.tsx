@@ -18,7 +18,17 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
 
   const filteredWines = wines.filter((wine) => {
     const matchesFilter = filter === 'all' || wine.type === filter;
-    const matchesSearch = wine.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const search = searchTerm.toLowerCase();
+    const matchesSearch =
+      wine.name.toLowerCase().includes(search) ||
+      wine.year.toString().includes(search) ||
+      (wine.grapes?.toLowerCase().includes(search) ?? false) ||
+      (wine.country?.toLowerCase().includes(search) ?? false) ||
+      (wine.region?.toLowerCase().includes(search) ?? false) ||
+      (wine.type?.toLowerCase().includes(search) ?? false) ||
+      (wine.taste_profile?.toLowerCase().includes(search) ?? false) ||
+      (wine.pairing_advice?.toLowerCase().includes(search) ?? false) ||
+      (wine.notes?.toLowerCase().includes(search) ?? false);
     return matchesFilter && matchesSearch;
   });
 

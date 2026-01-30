@@ -44,10 +44,12 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load wines when user is authenticated
+  // Load wines and API key when user is authenticated
   useEffect(() => {
     if (user && !showResetPassword) {
       loadWines();
+      // Laad API key van Supabase
+      storage.loadApiKey();
     } else {
       setWines([]);
     }

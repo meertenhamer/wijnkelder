@@ -3,6 +3,9 @@ import { supabase } from './supabase';
 
 const API_KEY_KEY = 'wijnkelder_openai_key';
 
+// Cache voor API key (om niet steeds database te hoeven raadplegen)
+let cachedApiKey: string | null = null;
+
 // Database wine type (snake_case from Supabase)
 interface DbWine {
   id: string;
@@ -138,15 +141,72 @@ export const storage = {
     return true;
   },
 
+  // Haal API key op - eerst uit cache, dan uit Supabase
   getApiKey(): string | null {
-    return localStorage.getItem(API_KEY_KEY);
+    return cachedApiKey;
+  },
+
+  // Laad API key van Supabase en cache het
+  async loadApiKey(): Promise<string | null> {
+    // Check eerst localStorage voor backwards compatibility
+    const localKey = localStorage.getItem(API_KEY_KEY);
+    if (localKey) {
+      cachedApiKey = localKey;
+      // Migreer naar Supabase
+      await this.saveApiKeyToSupabase(localKey);
+      localStorage.removeItem(API_KEY_KEY);
+      return localKey;
+    }
+
+    // Haal op van Supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('openai_api_key')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error || !data?.openai_api_key) {
+      return null;
+    }
+
+    cachedApiKey = data.openai_api_key;
+    return cachedApiKey;
+  },
+
+  // Sla API key op in Supabase
+  async saveApiKeyToSupabase(key: string): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: user.id,
+        openai_api_key: key,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
+      });
+
+    if (error) {
+      console.error('Error saving API key:', error);
+      return false;
+    }
+
+    cachedApiKey = key;
+    return true;
   },
 
   setApiKey(key: string): void {
-    localStorage.setItem(API_KEY_KEY, key);
+    cachedApiKey = key;
+    // Sla ook op in Supabase (fire and forget)
+    this.saveApiKeyToSupabase(key);
   },
 
   clearApiKey(): void {
-    localStorage.removeItem(API_KEY_KEY);
+    cachedApiKey = null;
   }
 };
