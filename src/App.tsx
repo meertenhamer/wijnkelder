@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './services/supabase';
 import { storage } from './services/storage';
 import { AuthPage } from './components/AuthPage';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { HomePage } from './components/HomePage';
 import { NewWineForm } from './components/NewWineForm';
 import { WineCellar } from './components/WineCellar';
@@ -15,16 +16,27 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState<Page>('home');
   const [wines, setWines] = useState<Wine[]>([]);
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Check auth status on mount
   useEffect(() => {
+    console.log('App mounted, checking session...');
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Session result:', session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch((err) => {
+      console.error('Session error:', err);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+
+      // Show reset password page when user comes from recovery link
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowResetPassword(true);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -32,12 +44,12 @@ function App() {
 
   // Load wines when user is authenticated
   useEffect(() => {
-    if (user) {
+    if (user && !showResetPassword) {
       loadWines();
     } else {
       setWines([]);
     }
-  }, [user]);
+  }, [user, showResetPassword]);
 
   const loadWines = async () => {
     const wines = await storage.getWines();
@@ -68,6 +80,15 @@ function App() {
       <div className="min-h-screen bg-stone-100 flex items-center justify-center">
         <p className="text-stone-500">Laden...</p>
       </div>
+    );
+  }
+
+  // Show reset password page
+  if (showResetPassword && user) {
+    return (
+      <ResetPasswordPage
+        onSuccess={() => setShowResetPassword(false)}
+      />
     );
   }
 
