@@ -42,7 +42,7 @@ export function WineCard({ wine, onClose, onUpdate, onDelete }: WineCardProps) {
       tasteProfile: tasteProfile || undefined,
       pairingAdvice: pairingAdvice || undefined,
       notes: notes || undefined,
-      rating: rating as 1 | 2 | 3 | 4 | 5 | undefined,
+      rating: rating > 0 ? (rating as 1 | 2 | 3 | 4 | 5) : undefined,
       quantity
     };
     await storage.updateWine(updatedWine);
