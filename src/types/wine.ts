@@ -29,4 +29,5 @@ export interface WineFormData {
   year: number;
   grapes?: string;
   quantity: number;
+  notes?: string;
 }
