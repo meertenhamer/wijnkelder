@@ -1,5 +1,5 @@
 interface HomePageProps {
-  onNavigate: (page: 'new' | 'cellar') => void;
+  onNavigate: (page: 'new' | 'cellar' | 'search' | 'pairing') => void;
   onLogout?: () => void;
   userEmail?: string;
 }
@@ -24,7 +24,7 @@ export function HomePage({ onNavigate, onLogout, userEmail }: HomePageProps) {
         <p className="text-stone-500 text-lg">Beheer je wijnvoorraad</p>
       </div>
 
-      <div className="flex flex-col gap-6 w-full max-w-xs">
+      <div className="flex flex-col gap-4 w-full max-w-xs">
         <button
           onClick={() => onNavigate('new')}
           className="bg-red-900 hover:bg-red-800 text-white font-semibold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
@@ -39,6 +39,22 @@ export function HomePage({ onNavigate, onLogout, userEmail }: HomePageProps) {
         >
           <span className="text-2xl mr-3">🍷</span>
           Wijnkelder
+        </button>
+
+        <button
+          onClick={() => onNavigate('search')}
+          className="bg-red-900 hover:bg-red-800 text-white font-semibold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+        >
+          <span className="text-2xl mr-3">🔍</span>
+          Zoek een Wijn
+        </button>
+
+        <button
+          onClick={() => onNavigate('pairing')}
+          className="bg-red-900 hover:bg-red-800 text-white font-semibold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+        >
+          <span className="text-2xl mr-3">🍽️</span>
+          Wijn/Spijs Combinatie
         </button>
       </div>
     </div>

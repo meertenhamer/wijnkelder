@@ -13,7 +13,8 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
     name: '',
     year: new Date().getFullYear(),
     grapes: '',
-    quantity: 1
+    quantity: 1,
+    notes: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
         bestBefore: wineInfo.bestBefore,
         tasteProfile: wineInfo.tasteProfile,
         pairingAdvice: wineInfo.pairingAdvice,
+        notes: formData.notes || undefined,
       };
 
       const savedWine = await storage.saveWine(wineData);
@@ -158,6 +160,19 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
                 onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
                 className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
                 min="1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-stone-700 text-sm font-medium mb-2">
+                Herkomst / Opmerkingen <span className="text-stone-400">(optioneel)</span>
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900 resize-none"
+                placeholder="bijv. Gekregen van Jan, Gekocht bij Gall & Gall"
+                rows={2}
               />
             </div>
           </div>
