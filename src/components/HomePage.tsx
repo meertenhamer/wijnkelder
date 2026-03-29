@@ -1,5 +1,5 @@
 interface HomePageProps {
-  onNavigate: (page: 'new' | 'cellar' | 'search' | 'pairing' | 'settings') => void;
+  onNavigate: (page: 'new' | 'cellar' | 'search' | 'pairing' | 'settings' | 'dashboard') => void;
   onLogout?: () => void;
   userEmail?: string;
 }
@@ -61,6 +61,14 @@ export function HomePage({ onNavigate, onLogout, userEmail }: HomePageProps) {
         >
           <span className="text-2xl mr-3">🍽️</span>
           Wijn/Spijs Combinatie
+        </button>
+
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="bg-red-900 hover:bg-red-800 text-white font-semibold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+        >
+          <span className="text-2xl mr-3">📊</span>
+          Dashboard
         </button>
       </div>
     </div>

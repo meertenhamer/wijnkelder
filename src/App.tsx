@@ -11,8 +11,9 @@ import { WineCellar } from './components/WineCellar';
 import { WineSearch } from './components/WineSearch';
 import { FoodPairing } from './components/FoodPairing';
 import { Settings } from './components/Settings';
+import { Dashboard } from './components/Dashboard';
 
-type Page = 'home' | 'new' | 'cellar' | 'search' | 'pairing' | 'settings';
+type Page = 'home' | 'new' | 'cellar' | 'search' | 'pairing' | 'settings' | 'dashboard';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -137,6 +138,13 @@ function App() {
     case 'settings':
       return (
         <Settings
+          onBack={() => setPage('home')}
+        />
+      );
+    case 'dashboard':
+      return (
+        <Dashboard
+          wines={wines}
           onBack={() => setPage('home')}
         />
       );
