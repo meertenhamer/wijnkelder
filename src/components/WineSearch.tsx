@@ -11,6 +11,7 @@ interface WineInfo {
   bestOpDronk: string;
   smaakprofiel: string;
   pairingAdvies: string;
+  funFact: string;
 }
 
 interface WineSearchProps {
@@ -80,6 +81,7 @@ export function WineSearch({ onBack, onAddWine }: WineSearchProps) {
         bestBefore: wineInfo.bestOpDronk,
         tasteProfile: wineInfo.smaakprofiel,
         pairingAdvice: wineInfo.pairingAdvies,
+        funFact: wineInfo.funFact,
         notes: notes || undefined,
       };
 

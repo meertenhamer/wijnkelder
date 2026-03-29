@@ -20,6 +20,7 @@ interface WineInfoDutch {
   bestOpDronk: string;
   smaakprofiel: string;
   pairingAdvies: string;
+  funFact: string;
 }
 
 interface FoodPairingResult {
@@ -169,7 +170,8 @@ export async function getWineInfo(
     soort: info.type,
     bestOpDronk: info.bestBefore,
     smaakprofiel: info.tasteProfile,
-    pairingAdvies: info.pairingAdvice
+    pairingAdvies: info.pairingAdvice,
+    funFact: info.funFact
   };
 }
 
