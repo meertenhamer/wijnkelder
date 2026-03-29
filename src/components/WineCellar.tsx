@@ -18,7 +18,17 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
 
   const filteredWines = wines.filter((wine) => {
     const matchesFilter = filter === 'all' || wine.type === filter;
-    const matchesSearch = wine.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const search = searchTerm.toLowerCase();
+    const matchesSearch =
+      wine.name.toLowerCase().includes(search) ||
+      wine.year.toString().includes(search) ||
+      (wine.grapes?.toLowerCase().includes(search) ?? false) ||
+      (wine.country?.toLowerCase().includes(search) ?? false) ||
+      (wine.region?.toLowerCase().includes(search) ?? false) ||
+      (wine.type?.toLowerCase().includes(search) ?? false) ||
+      (wine.tasteProfile?.toLowerCase().includes(search) ?? false) ||
+      (wine.pairingAdvice?.toLowerCase().includes(search) ?? false) ||
+      (wine.notes?.toLowerCase().includes(search) ?? false);
     return matchesFilter && matchesSearch;
   });
 
@@ -38,11 +48,12 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 p-6">
+    <div className="min-h-screen bg-stone-100 p-6 pt-8">
       <div className="max-w-2xl mx-auto">
         <button
           onClick={onBack}
           className="text-stone-600 hover:text-stone-800 mb-6 flex items-center gap-2"
+          style={{ marginTop: 'env(safe-area-inset-top)' }}
         >
           <span>←</span> Terug
         </button>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Wine, WineFormData } from '../types/wine';
 import { storage } from '../services/storage';
 import { fetchWineInfo } from '../services/openai';
@@ -13,18 +13,11 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
     name: '',
     year: new Date().getFullYear(),
     grapes: '',
-    quantity: 1
+    quantity: 1,
+    notes: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState(storage.getApiKey() || '');
-  const [showApiKeyInput, setShowApiKeyInput] = useState(!storage.getApiKey());
-
-  useEffect(() => {
-    if (apiKey) {
-      storage.setApiKey(apiKey);
-    }
-  }, [apiKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,12 +25,6 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
 
     if (!formData.name.trim()) {
       setError('Vul een wijnnaam in');
-      return;
-    }
-
-    if (!apiKey) {
-      setError('Vul je OpenAI API key in');
-      setShowApiKeyInput(true);
       return;
     }
 
@@ -61,6 +48,8 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
         bestBefore: wineInfo.bestBefore,
         tasteProfile: wineInfo.tasteProfile,
         pairingAdvice: wineInfo.pairingAdvice,
+        funFact: wineInfo.funFact,
+        notes: formData.notes || undefined,
       };
 
       const savedWine = await storage.saveWine(wineData);
@@ -77,34 +66,17 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 p-6">
+    <div className="min-h-screen bg-stone-100 p-6 pt-8">
       <div className="max-w-md mx-auto">
         <button
           onClick={onBack}
           className="text-stone-600 hover:text-stone-800 mb-6 flex items-center gap-2"
+          style={{ marginTop: 'env(safe-area-inset-top)' }}
         >
           <span>←</span> Terug
         </button>
 
         <h1 className="text-3xl font-bold text-stone-800 mb-8">Nieuwe Wijn</h1>
-
-        {showApiKeyInput && (
-          <div className="bg-white rounded-2xl p-6 mb-6 border border-stone-200 shadow-sm">
-            <label className="block text-stone-700 text-sm font-medium mb-2">
-              OpenAI API Key
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
-              placeholder="sk-..."
-            />
-            <p className="text-stone-500 text-xs mt-2">
-              Je key wordt lokaal opgeslagen en nooit gedeeld
-            </p>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-5">
@@ -154,10 +126,23 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
               </label>
               <input
                 type="number"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                value={formData.quantity || ''}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 })}
                 className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
                 min="1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-stone-700 text-sm font-medium mb-2">
+                Herkomst / Opmerkingen <span className="text-stone-400">(optioneel)</span>
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900 resize-none"
+                placeholder="bijv. Gekregen van Jan, Gekocht bij Gall & Gall"
+                rows={2}
               />
             </div>
           </div>

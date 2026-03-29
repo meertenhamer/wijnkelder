@@ -8,8 +8,11 @@ import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { HomePage } from './components/HomePage';
 import { NewWineForm } from './components/NewWineForm';
 import { WineCellar } from './components/WineCellar';
+import { WineSearch } from './components/WineSearch';
+import { FoodPairing } from './components/FoodPairing';
+import { Settings } from './components/Settings';
 
-type Page = 'home' | 'new' | 'cellar';
+type Page = 'home' | 'new' | 'cellar' | 'search' | 'pairing' | 'settings';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -42,10 +45,12 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load wines when user is authenticated
+  // Load wines and API key when user is authenticated
   useEffect(() => {
     if (user && !showResetPassword) {
       loadWines();
+      // Laad API key van Supabase
+      storage.loadApiKey();
     } else {
       setWines([]);
     }
@@ -113,6 +118,26 @@ function App() {
           onBack={() => setPage('home')}
           onUpdate={handleUpdateWine}
           onDelete={handleDeleteWine}
+        />
+      );
+    case 'search':
+      return (
+        <WineSearch
+          onBack={() => setPage('home')}
+          onAddWine={(wine) => setWines([wine, ...wines])}
+        />
+      );
+    case 'pairing':
+      return (
+        <FoodPairing
+          wines={wines}
+          onBack={() => setPage('home')}
+        />
+      );
+    case 'settings':
+      return (
+        <Settings
+          onBack={() => setPage('home')}
         />
       );
     default:

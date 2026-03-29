@@ -16,6 +16,7 @@ export interface Wine {
   bestBefore?: string;
   tasteProfile?: string;
   pairingAdvice?: string;
+  funFact?: string;
 
   // Gebruikersfeedback
   notes?: string;
@@ -29,4 +30,5 @@ export interface WineFormData {
   year: number;
   grapes?: string;
   quantity: number;
+  notes?: string;
 }
