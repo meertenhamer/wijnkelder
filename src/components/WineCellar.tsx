@@ -48,7 +48,7 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 p-6 pt-8">
+    <div className="h-full overflow-y-auto bg-stone-100 p-6 pt-8">
       <div className="max-w-2xl mx-auto">
         <button
           onClick={onBack}

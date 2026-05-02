@@ -34,7 +34,7 @@ export function Settings({ onBack }: SettingsProps) {
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 p-6 pt-8">
+    <div className="h-full overflow-y-auto bg-stone-100 p-6 pt-8">
       <div className="max-w-md mx-auto">
         <button
           onClick={onBack}

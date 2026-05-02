@@ -1,8 +1,17 @@
 @import "tailwindcss";
 
+/* Vergrendel de pagina zelf — echte apps scrollen nooit als geheel */
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  overscroll-behavior: none; /* Geen rubber-band effect op iOS */
+  box-sizing: border-box;
   /* Safe area voor iPhone notch/Dynamic Island */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -11,5 +20,6 @@ body {
 }
 
 #root {
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
 }

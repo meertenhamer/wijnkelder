@@ -6,7 +6,7 @@ interface HomePageProps {
 
 export function HomePage({ onNavigate, onLogout, userEmail }: HomePageProps) {
   return (
-    <div className="min-h-screen bg-stone-100 flex flex-col items-center justify-center p-6 pt-16">
+    <div className="h-full overflow-hidden bg-stone-100 flex flex-col items-center justify-center p-6 pt-16">
       {userEmail && (
         <div className="absolute top-6 right-4 flex items-center gap-4" style={{ top: 'calc(env(safe-area-inset-top) + 0.5rem)' }}>
           <span className="text-stone-500 text-sm">{userEmail}</span>

@@ -93,7 +93,7 @@ export function Dashboard({ wines, onBack }: DashboardProps) {
 
   if (wines.length === 0) {
     return (
-      <div className="min-h-screen bg-stone-100 p-4 pt-8">
+      <div className="h-full overflow-y-auto bg-stone-100 p-4 pt-8">
         <div className="max-w-md mx-auto">
           <button
             onClick={onBack}
@@ -112,7 +112,7 @@ export function Dashboard({ wines, onBack }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 p-4 pt-8 pb-12">
+    <div className="h-full overflow-y-auto bg-stone-100 p-4 pt-8 pb-12">
       <div className="max-w-md mx-auto">
         <button
           onClick={onBack}

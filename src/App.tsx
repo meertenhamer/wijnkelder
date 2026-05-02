@@ -102,7 +102,7 @@ function App() {
   // Show loading screen
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-100 flex items-center justify-center">
+      <div className="h-full overflow-hidden bg-stone-100 flex items-center justify-center">
         <p className="text-stone-500">Laden...</p>
       </div>
     );
