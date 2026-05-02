@@ -13,9 +13,8 @@ body {
   overscroll-behavior: none; /* Geen rubber-band effect op iOS */
   box-sizing: border-box;
   background-color: #f5f5f4; /* stone-100 — zelfde als app-achtergrond */
-  /* Safe area voor iPhone notch/Dynamic Island */
+  /* Safe area voor iPhone notch/Dynamic Island — alleen top en zijkanten */
   padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
