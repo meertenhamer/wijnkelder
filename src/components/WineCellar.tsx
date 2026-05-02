@@ -9,7 +9,7 @@ interface WineCellarProps {
   onDelete: (id: string) => void;
 }
 
-type FilterType = 'all' | WineType;
+type FilterType = 'all' | 'instock' | WineType;
 
 export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProps) {
   const [filter, setFilter] = useState<FilterType>('all');
@@ -17,7 +17,9 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredWines = wines.filter((wine) => {
-    const matchesFilter = filter === 'all' || wine.type === filter;
+    const matchesFilter =
+      filter === 'all' ||
+      (filter === 'instock' ? wine.quantity > 0 : wine.type === filter);
     const search = searchTerm.toLowerCase();
     const matchesSearch =
       wine.name.toLowerCase().includes(search) ||
@@ -34,6 +36,7 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
 
   const filterOptions: { value: FilterType; label: string; color: string }[] = [
     { value: 'all', label: 'Alle', color: 'bg-stone-600' },
+    { value: 'instock', label: 'Op voorraad', color: 'bg-green-700' },
     { value: 'rood', label: 'Rood', color: 'bg-red-800' },
     { value: 'wit', label: 'Wit', color: 'bg-amber-500' },
     { value: 'rosé', label: 'Rosé', color: 'bg-pink-400' },
