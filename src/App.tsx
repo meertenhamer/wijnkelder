@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Wine } from './types/wine';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './services/supabase';
+import { App as CapApp } from '@capacitor/app';
 import { storage } from './services/storage';
 import { AuthPage } from './components/AuthPage';
 import { ResetPasswordPage } from './components/ResetPasswordPage';
@@ -37,13 +38,31 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
 
-      // Show reset password page when user comes from recovery link
       if (event === 'PASSWORD_RECOVERY') {
         setShowResetPassword(true);
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Verwerk Supabase auth deep links in de native iOS app (bijv. wachtwoord reset)
+    let appUrlListener: (() => void) | undefined;
+    CapApp.addListener('appUrlOpen', ({ url }) => {
+      if (url.includes('access_token') || url.includes('type=recovery')) {
+        const fragment = url.includes('#') ? url.split('#')[1] : url.split('?')[1];
+        const params = new URLSearchParams(fragment);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (accessToken && refreshToken) {
+          supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        }
+      }
+    }).then(handle => {
+      appUrlListener = () => handle.remove();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      appUrlListener?.();
+    };
   }, []);
 
   // Load wines and API key when user is authenticated
