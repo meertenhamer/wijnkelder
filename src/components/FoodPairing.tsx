@@ -71,12 +71,12 @@ export function FoodPairing({ wines, onBack }: FoodPairingProps) {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-stone-100 p-4 pt-8">
+    <div className="flex-1 overflow-y-auto bg-stone-100 p-4 pt-8">
       <div className="max-w-md mx-auto">
         <button
           onClick={onBack}
           className="mb-4 text-red-900 font-medium flex items-center gap-2"
-          style={{ marginTop: 'env(safe-area-inset-top)' }}
+          
         >
           ← Terug
         </button>

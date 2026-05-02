@@ -48,12 +48,12 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-stone-100 p-6 pt-8">
+    <div className="flex-1 overflow-y-auto bg-stone-100 p-6 pt-8">
       <div className="max-w-2xl mx-auto">
         <button
           onClick={onBack}
           className="text-stone-600 hover:text-stone-800 mb-6 flex items-center gap-2"
-          style={{ marginTop: 'env(safe-area-inset-top)' }}
+          
         >
           <span>←</span> Terug
         </button>

@@ -43,7 +43,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
   };
 
   return (
-    <div className="h-full overflow-hidden bg-stone-100 flex flex-col items-center justify-center p-6">
+    <div className="flex-1 overflow-hidden bg-stone-100 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-stone-800 mb-2">Wijnkelder</h1>
