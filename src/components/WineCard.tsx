@@ -78,18 +78,16 @@ export function WineCard({ wine, onClose, onUpdate, onDelete }: WineCardProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50"
       style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 1rem)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)',
-        paddingLeft: '1rem',
-        paddingRight: '1rem',
+        paddingTop: 'calc(env(safe-area-inset-top) + 1.5rem)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)',
       }}
       onClick={onClose}
     >
       <div
         className="bg-white rounded-3xl max-w-md w-full overflow-y-auto border border-stone-200 shadow-2xl"
-        style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem)' }}
+        style={{ maxHeight: '78vh' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
