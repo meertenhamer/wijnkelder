@@ -9,17 +9,17 @@ interface WineCellarProps {
   onDelete: (id: string) => void;
 }
 
-type FilterType = 'all' | 'instock' | WineType;
+type TypeFilter = 'all' | WineType;
 
 export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProps) {
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [onlyInStock, setOnlyInStock] = useState(false);
   const [selectedWine, setSelectedWine] = useState<Wine | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredWines = wines.filter((wine) => {
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'instock' ? wine.quantity > 0 : wine.type === filter);
+    const matchesType = typeFilter === 'all' || wine.type === typeFilter;
+    const matchesStock = !onlyInStock || wine.quantity > 0;
     const search = searchTerm.toLowerCase();
     const matchesSearch =
       wine.name.toLowerCase().includes(search) ||
@@ -31,12 +31,11 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
       (wine.tasteProfile?.toLowerCase().includes(search) ?? false) ||
       (wine.pairingAdvice?.toLowerCase().includes(search) ?? false) ||
       (wine.notes?.toLowerCase().includes(search) ?? false);
-    return matchesFilter && matchesSearch;
+    return matchesType && matchesStock && matchesSearch;
   });
 
-  const filterOptions: { value: FilterType; label: string; color: string }[] = [
+  const typeOptions: { value: TypeFilter; label: string; color: string }[] = [
     { value: 'all', label: 'Alle', color: 'bg-stone-600' },
-    { value: 'instock', label: 'Op voorraad', color: 'bg-green-700' },
     { value: 'rood', label: 'Rood', color: 'bg-red-800' },
     { value: 'wit', label: 'Wit', color: 'bg-amber-500' },
     { value: 'rosé', label: 'Rosé', color: 'bg-pink-400' },
@@ -74,12 +73,22 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
         </div>
 
         <div className="flex flex-wrap gap-2 mb-6">
-          {filterOptions.map((option) => (
+          <button
+            onClick={() => setOnlyInStock(!onlyInStock)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              onlyInStock
+                ? 'bg-green-700 text-white shadow-lg'
+                : 'bg-white text-stone-600 border border-stone-300 hover:bg-stone-50'
+            }`}
+          >
+            Op voorraad
+          </button>
+          {typeOptions.map((option) => (
             <button
               key={option.value}
-              onClick={() => setFilter(option.value)}
+              onClick={() => setTypeFilter(option.value)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                filter === option.value
+                typeFilter === option.value
                   ? `${option.color} text-white shadow-lg`
                   : 'bg-white text-stone-600 border border-stone-300 hover:bg-stone-50'
               }`}
@@ -131,7 +140,9 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
 
         <div className="mt-6 text-center text-stone-500 text-sm">
           {filteredWines.length} {filteredWines.length === 1 ? 'wijn' : 'wijnen'}
-          {filter !== 'all' && ` (${filter})`}
+          {(typeFilter !== 'all' || onlyInStock) && (
+            <span> ({[onlyInStock && 'op voorraad', typeFilter !== 'all' && typeFilter].filter(Boolean).join(', ')})</span>
+          )}
         </div>
       </div>
 
