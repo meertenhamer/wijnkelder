@@ -22,6 +22,9 @@ export interface Wine {
   notes?: string;
   rating?: 1 | 2 | 3 | 4 | 5;
 
+  // Opslaglocatie in de kelder (bijv. Klimaatkast, Wijnrek)
+  location?: string;
+
   createdAt: string;
 }
 
@@ -31,4 +34,11 @@ export interface WineFormData {
   grapes?: string;
   quantity: number;
   notes?: string;
+  location?: string;
+}
+
+export interface WineLocation {
+  id: string;
+  name: string;
+  createdAt: string;
 }

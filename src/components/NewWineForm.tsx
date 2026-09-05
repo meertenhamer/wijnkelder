@@ -1,20 +1,24 @@
 import { useState } from 'react';
-import type { Wine, WineFormData } from '../types/wine';
+import type { Wine, WineFormData, WineLocation } from '../types/wine';
 import { storage } from '../services/storage';
 import { fetchWineInfo } from '../services/openai';
+import { LocationSelect } from './LocationSelect';
 
 interface NewWineFormProps {
   onBack: () => void;
   onSave: (wine: Wine) => void;
+  locations: WineLocation[];
+  onAddLocation: (name: string) => Promise<WineLocation | null>;
 }
 
-export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
+export function NewWineForm({ onBack, onSave, locations, onAddLocation }: NewWineFormProps) {
   const [formData, setFormData] = useState<WineFormData>({
     name: '',
     year: new Date().getFullYear(),
     grapes: '',
     quantity: 1,
-    notes: ''
+    notes: '',
+    location: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +54,7 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
         pairingAdvice: wineInfo.pairingAdvice,
         funFact: wineInfo.funFact,
         notes: formData.notes || undefined,
+        location: formData.location || undefined,
       };
 
       const savedWine = await storage.saveWine(wineData);
@@ -130,6 +135,18 @@ export function NewWineForm({ onBack, onSave }: NewWineFormProps) {
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 })}
                 className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
                 min="1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-stone-700 text-sm font-medium mb-2">
+                Locatie <span className="text-stone-400">(optioneel)</span>
+              </label>
+              <LocationSelect
+                value={formData.location || ''}
+                onChange={(location) => setFormData({ ...formData, location })}
+                locations={locations}
+                onAddLocation={onAddLocation}
               />
             </div>
 

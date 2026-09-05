@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
 import { storage, type AiProvider } from '../services/storage';
+import type { WineLocation } from '../types/wine';
 
 interface SettingsProps {
   onBack: () => void;
+  locations: WineLocation[];
+  onAddLocation: (name: string) => Promise<WineLocation | null>;
+  onDeleteLocation: (id: string) => Promise<void>;
 }
 
-export function Settings({ onBack }: SettingsProps) {
+export function Settings({ onBack, locations, onAddLocation, onDeleteLocation }: SettingsProps) {
   const [openaiKey, setOpenaiKey] = useState('');
   const [claudeKey, setClaudeKey] = useState('');
   const [aiProvider, setAiProvider] = useState<AiProvider>('openai');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [newLocation, setNewLocation] = useState('');
+  const [addingLocation, setAddingLocation] = useState(false);
 
   useEffect(() => {
     setOpenaiKey(storage.getApiKey() || '');
@@ -31,6 +37,21 @@ export function Settings({ onBack }: SettingsProps) {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleAddLocation = async () => {
+    const trimmed = newLocation.trim();
+    if (!trimmed) return;
+    setAddingLocation(true);
+    await onAddLocation(trimmed);
+    setAddingLocation(false);
+    setNewLocation('');
+  };
+
+  const handleDeleteLocation = async (id: string, name: string) => {
+    if (confirm(`Locatie "${name}" verwijderen? Wijnen met deze locatie behouden de tekst.`)) {
+      await onDeleteLocation(id);
+    }
   };
 
   return (
@@ -113,6 +134,58 @@ export function Settings({ onBack }: SettingsProps) {
                 className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
                 placeholder="sk-ant-..."
               />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-5">
+            <h2 className="text-lg font-semibold text-stone-800">Locaties</h2>
+            <p className="text-stone-500 text-sm">
+              Beheer waar je wijnen liggen, bijv. Klimaatkast, Wijnrek of Wijnkast.
+            </p>
+
+            {locations.length > 0 ? (
+              <div className="space-y-2">
+                {locations.map((loc) => (
+                  <div
+                    key={loc.id}
+                    className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"
+                  >
+                    <span className="text-stone-800">📍 {loc.name}</span>
+                    <button
+                      onClick={() => handleDeleteLocation(loc.id, loc.name)}
+                      className="text-stone-400 hover:text-red-600 transition-all"
+                      aria-label={`${loc.name} verwijderen`}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-stone-400 text-sm italic">Nog geen locaties toegevoegd.</p>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newLocation}
+                onChange={(e) => setNewLocation(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddLocation();
+                  }
+                }}
+                placeholder="Nieuwe locatie..."
+                className="flex-1 bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
+              />
+              <button
+                onClick={handleAddLocation}
+                disabled={addingLocation || !newLocation.trim()}
+                className="bg-red-900 hover:bg-red-800 disabled:bg-red-900/50 text-white font-medium px-5 rounded-xl transition-all disabled:cursor-not-allowed"
+              >
+                {addingLocation ? '...' : 'Toevoegen'}
+              </button>
             </div>
           </div>
 

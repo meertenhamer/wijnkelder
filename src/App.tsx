@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Wine } from './types/wine';
+import type { Wine, WineLocation } from './types/wine';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './services/supabase';
 import { App as CapApp } from '@capacitor/app';
@@ -21,6 +21,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState<Page>('home');
   const [wines, setWines] = useState<Wine[]>([]);
+  const [locations, setLocations] = useState<WineLocation[]>([]);
   const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Check auth status on mount
@@ -69,16 +70,46 @@ function App() {
   useEffect(() => {
     if (user && !showResetPassword) {
       loadWines();
+      loadLocations();
       // Laad API key van Supabase
       storage.loadApiKey();
     } else {
       setWines([]);
+      setLocations([]);
     }
   }, [user, showResetPassword]);
 
   const loadWines = async () => {
     const wines = await storage.getWines();
     setWines(wines);
+  };
+
+  const loadLocations = async () => {
+    const locations = await storage.getLocations();
+    setLocations(locations);
+  };
+
+  const handleAddLocation = async (name: string): Promise<WineLocation | null> => {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    // Voorkom dubbele locaties (hoofdletterongevoelig)
+    const existing = locations.find(
+      (l) => l.name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing) return existing;
+
+    const created = await storage.addLocation(trimmed);
+    if (created) {
+      setLocations([...locations, created].sort((a, b) => a.name.localeCompare(b.name)));
+    }
+    return created;
+  };
+
+  const handleDeleteLocation = async (id: string) => {
+    const ok = await storage.deleteLocation(id);
+    if (ok) {
+      setLocations(locations.filter((l) => l.id !== id));
+    }
   };
 
   const handleSaveWine = (wine: Wine) => {
@@ -129,6 +160,8 @@ function App() {
         <NewWineForm
           onBack={() => setPage('home')}
           onSave={handleSaveWine}
+          locations={locations}
+          onAddLocation={handleAddLocation}
         />
       );
     case 'cellar':
@@ -138,6 +171,8 @@ function App() {
           onBack={() => setPage('home')}
           onUpdate={handleUpdateWine}
           onDelete={handleDeleteWine}
+          locations={locations}
+          onAddLocation={handleAddLocation}
         />
       );
     case 'search':
@@ -158,6 +193,9 @@ function App() {
       return (
         <Settings
           onBack={() => setPage('home')}
+          locations={locations}
+          onAddLocation={handleAddLocation}
+          onDeleteLocation={handleDeleteLocation}
         />
       );
     case 'dashboard':

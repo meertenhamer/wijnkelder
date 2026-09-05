@@ -1,4 +1,4 @@
-import type { Wine } from '../types/wine';
+import type { Wine, WineLocation } from '../types/wine';
 import { supabase } from './supabase';
 
 const API_KEY_KEY = 'wijnkelder_openai_key';
@@ -27,6 +27,15 @@ interface DbWine {
   fun_fact: string | null;
   notes: string | null;
   rating: number | null;
+  location: string | null;
+  created_at: string;
+}
+
+// Database location type (snake_case from Supabase)
+interface DbLocation {
+  id: string;
+  user_id: string;
+  name: string;
   created_at: string;
 }
 
@@ -47,6 +56,7 @@ function dbToWine(dbWine: DbWine): Wine {
     funFact: dbWine.fun_fact || undefined,
     notes: dbWine.notes || undefined,
     rating: dbWine.rating as Wine['rating'],
+    location: dbWine.location || undefined,
     createdAt: dbWine.created_at,
   };
 }
@@ -68,6 +78,7 @@ function wineToDb(wine: Omit<Wine, 'id' | 'createdAt'>, userId: string) {
     fun_fact: wine.funFact || null,
     notes: wine.notes || null,
     rating: wine.rating || null,
+    location: wine.location || null,
   };
 }
 
@@ -124,6 +135,7 @@ export const storage = {
         fun_fact: wine.funFact || null,
         notes: wine.notes || null,
         rating: wine.rating || null,
+        location: wine.location || null,
       })
       .eq('id', wine.id);
 
@@ -143,6 +155,59 @@ export const storage = {
 
     if (error) {
       console.error('Error deleting wine:', error);
+      return false;
+    }
+
+    return true;
+  },
+
+  // --- Locaties ---
+
+  async getLocations(): Promise<WineLocation[]> {
+    const { data, error } = await supabase
+      .from('wine_locations')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching locations:', error);
+      return [];
+    }
+
+    return (data as DbLocation[]).map((l) => ({
+      id: l.id,
+      name: l.name,
+      createdAt: l.created_at,
+    }));
+  },
+
+  async addLocation(name: string): Promise<WineLocation | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('wine_locations')
+      .insert({ user_id: user.id, name: name.trim() })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding location:', error);
+      return null;
+    }
+
+    const l = data as DbLocation;
+    return { id: l.id, name: l.name, createdAt: l.created_at };
+  },
+
+  async deleteLocation(id: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('wine_locations')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting location:', error);
       return false;
     }
 

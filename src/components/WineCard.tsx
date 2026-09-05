@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import type { Wine, WineType } from '../types/wine';
+import type { Wine, WineType, WineLocation } from '../types/wine';
 import { StarRating } from './StarRating';
+import { LocationSelect } from './LocationSelect';
 import { storage } from '../services/storage';
 
 interface WineCardProps {
   wine: Wine;
+  locations: WineLocation[];
+  onAddLocation: (name: string) => Promise<WineLocation | null>;
   onClose: () => void;
   onUpdate: (wine: Wine) => void;
   onDelete: (id: string) => void;
 }
 
-export function WineCard({ wine, onClose, onUpdate, onDelete }: WineCardProps) {
+export function WineCard({ wine, locations, onAddLocation, onClose, onUpdate, onDelete }: WineCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [notes, setNotes] = useState(wine.notes || '');
   const [rating, setRating] = useState(wine.rating || 0);
@@ -28,6 +31,7 @@ export function WineCard({ wine, onClose, onUpdate, onDelete }: WineCardProps) {
   const [tasteProfile, setTasteProfile] = useState(wine.tasteProfile || '');
   const [pairingAdvice, setPairingAdvice] = useState(wine.pairingAdvice || '');
   const [funFact, setFunFact] = useState(wine.funFact || '');
+  const [location, setLocation] = useState(wine.location || '');
 
   const updateQuantity = async (newQuantity: number) => {
     setQuantity(newQuantity);
@@ -50,6 +54,7 @@ export function WineCard({ wine, onClose, onUpdate, onDelete }: WineCardProps) {
       tasteProfile: tasteProfile || undefined,
       pairingAdvice: pairingAdvice || undefined,
       funFact: funFact || undefined,
+      location: location || undefined,
       notes: notes || undefined,
       rating: rating > 0 ? (rating as 1 | 2 | 3 | 4 | 5) : undefined,
       quantity
@@ -206,6 +211,16 @@ export function WineCard({ wine, onClose, onUpdate, onDelete }: WineCardProps) {
                     rows={2}
                   />
                 </div>
+
+                <div>
+                  <label className="text-stone-500 text-xs">Locatie</label>
+                  <LocationSelect
+                    value={location}
+                    onChange={setLocation}
+                    locations={locations}
+                    onAddLocation={onAddLocation}
+                  />
+                </div>
               </>
             ) : (
               <>
@@ -246,6 +261,13 @@ export function WineCard({ wine, onClose, onUpdate, onDelete }: WineCardProps) {
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                     <p className="text-amber-700 text-xs mb-1 font-medium">💡 Fun fact</p>
                     <p className="text-stone-800">{funFact}</p>
+                  </div>
+                )}
+
+                {location && (
+                  <div className="bg-stone-100 rounded-xl p-3">
+                    <p className="text-stone-500 text-xs">Locatie</p>
+                    <p className="text-stone-800 font-medium">📍 {location}</p>
                   </div>
                 )}
               </>

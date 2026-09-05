@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Wine, WineType } from '../types/wine';
+import type { Wine, WineType, WineLocation } from '../types/wine';
 import { WineCard } from './WineCard';
 
 interface WineCellarProps {
@@ -7,11 +7,13 @@ interface WineCellarProps {
   onBack: () => void;
   onUpdate: (wine: Wine) => void;
   onDelete: (id: string) => void;
+  locations: WineLocation[];
+  onAddLocation: (name: string) => Promise<WineLocation | null>;
 }
 
 type TypeFilter = 'all' | WineType;
 
-export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProps) {
+export function WineCellar({ wines, onBack, onUpdate, onDelete, locations, onAddLocation }: WineCellarProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [selectedWine, setSelectedWine] = useState<Wine | null>(null);
@@ -122,6 +124,9 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
                       <p className="text-stone-500 text-sm">
                         {wine.year} • {wine.region || wine.country || wine.grapes}
                       </p>
+                      {wine.location && (
+                        <p className="text-stone-400 text-xs mt-0.5">📍 {wine.location}</p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -149,6 +154,8 @@ export function WineCellar({ wines, onBack, onUpdate, onDelete }: WineCellarProp
       {selectedWine && (
         <WineCard
           wine={selectedWine}
+          locations={locations}
+          onAddLocation={onAddLocation}
           onClose={() => setSelectedWine(null)}
           onUpdate={(updatedWine) => {
             onUpdate(updatedWine);
