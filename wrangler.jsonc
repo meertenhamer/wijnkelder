@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "wijnkelder",
+  "account_id": "40558d1c9fd90cc8df271c00050a6ea3",
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-01",
   "assets": {
@@ -13,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "wijnkelder",
-      "database_id": "VUL_IN_NA_AANMAKEN",
+      "database_id": "5c1cc6f5-f424-4464-8bd5-5546951d4082",
       "migrations_dir": "migrations"
     }
   ],
