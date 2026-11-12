@@ -24,8 +24,8 @@
   "preview_urls": false,
   "routes": [{ "pattern": "wijn.meertenhamer.nl", "custom_domain": true }],
   "vars": {
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": ""
+    "ACCESS_TEAM_DOMAIN": "meertenhamer.cloudflareaccess.com",
+    "ACCESS_AUD": "e36bb8564018e50738fc77e33578ccf8e9da6e5b246ec9f2e5dc458ebe491eaa"
   },
   "observability": { "enabled": true }
 }
