@@ -134,7 +134,11 @@ async function getProvider(env: Env, user: string): Promise<AiProvider> {
   const row = await env.DB.prepare('SELECT ai_provider FROM user_settings WHERE user_id = ?')
     .bind(user)
     .first<{ ai_provider: string }>();
-  return row?.ai_provider === 'claude' ? 'claude' : 'openai';
+  const chosen: AiProvider = row?.ai_provider === 'claude' ? 'claude' : row?.ai_provider === 'openai' ? 'openai' : 'claude';
+  // Val terug op de provider waarvoor wél een key op de server staat
+  if (chosen === 'claude' && !env.ANTHROPIC_API_KEY && env.OPENAI_API_KEY) return 'openai';
+  if (chosen === 'openai' && !env.OPENAI_API_KEY && env.ANTHROPIC_API_KEY) return 'claude';
+  return chosen;
 }
 
 async function callAI(env: Env, provider: AiProvider, prompt: string): Promise<string> {
