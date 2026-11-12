@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wijnkelder",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wijnkelder",
+      "database_id": "VUL_IN_NA_AANMAKEN",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Alleen bereikbaar via het eigen domein (achter Cloudflare Access),
+  // niet via een open *.workers.dev-adres.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "wijn.meertenhamer.nl", "custom_domain": true }],
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
+  },
+  "observability": { "enabled": true }
+}

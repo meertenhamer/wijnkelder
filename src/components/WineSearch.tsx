@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Wine } from '../types/wine';
-import { getWineInfo } from '../services/openai';
+import { getWineInfo } from '../services/ai';
 import { storage } from '../services/storage';
 
 interface WineInfo {

@@ -27,3 +27,8 @@ dist-ssr
 # Capacitor
 ios/
 *.timestamp-*.mjs
+
+# Cloudflare
+.wrangler/
+.dev.vars
+*.tsbuildinfo

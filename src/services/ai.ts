@@ -1,5 +1,5 @@
 import type { Wine, WineType } from '../types/wine';
-import { storage } from './storage';
+import { api } from './storage';
 
 interface WineInfo {
   grapes: string;
@@ -32,81 +32,11 @@ interface FoodPairingResult {
   generalAdvice: string;
 }
 
-// Generieke AI-aanroep die zowel OpenAI als Claude ondersteunt
+// AI-aanroep via de eigen server (/api/ai). De server kiest OpenAI of Claude
+// op basis van je instelling en gebruikt de API key die daar veilig is opgeslagen.
 async function callAI(prompt: string): Promise<string> {
-  const provider = storage.getAiProvider();
-
-  if (provider === 'claude') {
-    const apiKey = storage.getClaudeApiKey();
-    if (!apiKey) {
-      throw new Error('Geen Claude API key ingesteld. Ga naar Instellingen om je key in te voeren.');
-    }
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        messages: [
-          { role: 'user', content: prompt }
-        ],
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'Claude API fout');
-    }
-
-    const data = await response.json();
-    const content = data.content?.[0]?.text;
-
-    if (!content) {
-      throw new Error('Geen antwoord van Claude');
-    }
-
-    return content;
-  } else {
-    const apiKey = storage.getApiKey();
-    if (!apiKey) {
-      throw new Error('Geen OpenAI API key ingesteld. Ga naar Instellingen om je key in te voeren.');
-    }
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'OpenAI API fout');
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Geen antwoord van OpenAI');
-    }
-
-    return content;
-  }
+  const { text } = await api<{ text: string }>('/ai', { method: 'POST', body: { prompt } });
+  return text;
 }
 
 export async function fetchWineInfo(

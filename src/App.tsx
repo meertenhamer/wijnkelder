@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Wine, WineLocation } from './types/wine';
-import type { User } from '@supabase/supabase-js';
-import { supabase } from './services/supabase';
-import { App as CapApp } from '@capacitor/app';
-import { storage } from './services/storage';
-import { AuthPage } from './components/AuthPage';
-import { ResetPasswordPage } from './components/ResetPasswordPage';
+import { storage, NotLoggedInError, type Me } from './services/storage';
 import { HomePage } from './components/HomePage';
 import { NewWineForm } from './components/NewWineForm';
 import { WineCellar } from './components/WineCellar';
@@ -17,67 +12,32 @@ import { Dashboard } from './components/Dashboard';
 type Page = 'home' | 'new' | 'cellar' | 'search' | 'pairing' | 'settings' | 'dashboard';
 
 function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState<Page>('home');
   const [wines, setWines] = useState<Wine[]>([]);
   const [locations, setLocations] = useState<WineLocation[]>([]);
-  const [showResetPassword, setShowResetPassword] = useState(false);
 
-  // Check auth status on mount
+  // Inloggen gebeurt door Cloudflare Access voordat de app laadt.
+  // Hier halen we alleen op wie er is ingelogd, plus de wijnen en locaties.
   useEffect(() => {
-    console.log('App mounted, checking session...');
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Session result:', session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    }).catch((err) => {
-      console.error('Session error:', err);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-
-      if (event === 'PASSWORD_RECOVERY') {
-        setShowResetPassword(true);
-      }
-    });
-
-    // Verwerk Supabase auth deep links in de native iOS app (bijv. wachtwoord reset)
-    let appUrlListener: (() => void) | undefined;
-    CapApp.addListener('appUrlOpen', ({ url }) => {
-      if (url.includes('access_token') || url.includes('type=recovery')) {
-        const fragment = url.includes('#') ? url.split('#')[1] : url.split('?')[1];
-        const params = new URLSearchParams(fragment);
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        if (accessToken && refreshToken) {
-          supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        }
-      }
-    }).then(handle => {
-      appUrlListener = () => handle.remove();
-    });
-
-    return () => {
-      subscription.unsubscribe();
-      appUrlListener?.();
-    };
+    storage.getMe()
+      .then((user) => {
+        setMe(user);
+        loadWines();
+        loadLocations();
+      })
+      .catch((err) => {
+        console.error('Kon gebruiker niet laden:', err);
+        setLoadError(
+          err instanceof NotLoggedInError
+            ? 'Je bent niet (meer) ingelogd.'
+            : 'Kan de server niet bereiken.'
+        );
+      })
+      .finally(() => setLoading(false));
   }, []);
-
-  // Load wines and API key when user is authenticated
-  useEffect(() => {
-    if (user && !showResetPassword) {
-      loadWines();
-      loadLocations();
-      // Laad API key van Supabase
-      storage.loadApiKey();
-    } else {
-      setWines([]);
-      setLocations([]);
-    }
-  }, [user, showResetPassword]);
 
   const loadWines = async () => {
     const wines = await storage.getWines();
@@ -125,9 +85,9 @@ function App() {
     setWines(wines.filter(w => w.id !== id));
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setPage('home');
+  const handleLogout = () => {
+    // Uitloggen bij Cloudflare Access
+    window.location.href = '/cdn-cgi/access/logout';
   };
 
   // Show loading screen
@@ -139,18 +99,18 @@ function App() {
     );
   }
 
-  // Show reset password page
-  if (showResetPassword && user) {
+  if (!me) {
     return (
-      <ResetPasswordPage
-        onSuccess={() => setShowResetPassword(false)}
-      />
+      <div className="flex-1 overflow-hidden bg-stone-100 flex flex-col items-center justify-center gap-4 p-6">
+        <p className="text-stone-600">{loadError ?? 'Er ging iets mis.'}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-red-900 hover:bg-red-800 text-white font-semibold py-3 px-6 rounded-2xl"
+        >
+          Opnieuw proberen
+        </button>
+      </div>
     );
-  }
-
-  // Show auth page if not logged in
-  if (!user) {
-    return <AuthPage onAuthSuccess={() => {}} />;
   }
 
   // Main app
@@ -192,6 +152,7 @@ function App() {
     case 'settings':
       return (
         <Settings
+          me={me}
           onBack={() => setPage('home')}
           locations={locations}
           onAddLocation={handleAddLocation}
@@ -206,7 +167,7 @@ function App() {
         />
       );
     default:
-      return <HomePage onNavigate={setPage} onLogout={handleLogout} userEmail={user.email} />;
+      return <HomePage onNavigate={setPage} onLogout={handleLogout} userEmail={me.email} />;
   }
 }
 

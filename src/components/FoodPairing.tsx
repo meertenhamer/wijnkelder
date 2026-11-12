@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Wine } from '../types/wine';
-import { getFoodPairing } from '../services/openai';
+import { getFoodPairing } from '../services/ai';
 
 interface FoodPairingProps {
   wines: Wine[];

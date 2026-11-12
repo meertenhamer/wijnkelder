@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wijnkelder-v2';
+const CACHE_NAME = 'wijnkelder-v3';
 const urlsToCache = [
   '/',
   '/index.html'
@@ -29,6 +29,17 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  // API-verzoeken en Cloudflare Access (inloggen) nooit via de cache laten lopen
+  if (
+    event.request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/cdn-cgi/')
+  ) {
+    return;
+  }
+
   // Netwerk eerst: probeer altijd de nieuwste versie op te halen.
   // Val terug op cache alleen als het netwerk niet bereikbaar is.
   event.respondWith(

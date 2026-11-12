@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Wine, WineFormData, WineLocation } from '../types/wine';
 import { storage } from '../services/storage';
-import { fetchWineInfo } from '../services/openai';
+import { fetchWineInfo } from '../services/ai';
 import { LocationSelect } from './LocationSelect';
 
 interface NewWineFormProps {

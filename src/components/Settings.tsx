@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
-import { storage, type AiProvider } from '../services/storage';
+import { storage, type AiProvider, type Me } from '../services/storage';
 import type { WineLocation } from '../types/wine';
 
 interface SettingsProps {
+  me: Me;
   onBack: () => void;
   locations: WineLocation[];
   onAddLocation: (name: string) => Promise<WineLocation | null>;
   onDeleteLocation: (id: string) => Promise<void>;
 }
 
-export function Settings({ onBack, locations, onAddLocation, onDeleteLocation }: SettingsProps) {
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [claudeKey, setClaudeKey] = useState('');
+export function Settings({ me, onBack, locations, onAddLocation, onDeleteLocation }: SettingsProps) {
   const [aiProvider, setAiProvider] = useState<AiProvider>('openai');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -19,8 +18,6 @@ export function Settings({ onBack, locations, onAddLocation, onDeleteLocation }:
   const [addingLocation, setAddingLocation] = useState(false);
 
   useEffect(() => {
-    setOpenaiKey(storage.getApiKey() || '');
-    setClaudeKey(storage.getClaudeApiKey() || '');
     setAiProvider(storage.getAiProvider());
   }, []);
 
@@ -28,11 +25,7 @@ export function Settings({ onBack, locations, onAddLocation, onDeleteLocation }:
     setSaving(true);
     setSaved(false);
 
-    await storage.saveSettings({
-      openaiApiKey: openaiKey,
-      claudeApiKey: claudeKey,
-      aiProvider,
-    });
+    await storage.saveAiProvider(aiProvider);
 
     setSaving(false);
     setSaved(true);
@@ -98,43 +91,17 @@ export function Settings({ onBack, locations, onAddLocation, onDeleteLocation }:
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-5">
+          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-3">
             <h2 className="text-lg font-semibold text-stone-800">API Keys</h2>
             <p className="text-stone-500 text-sm">
-              Je keys worden veilig opgeslagen in je account en nooit gedeeld.
+              De keys staan veilig op de server en worden nooit naar je apparaat gestuurd.
             </p>
-
-            <div>
-              <label className="block text-stone-700 text-sm font-medium mb-2">
-                OpenAI API Key
-                {aiProvider === 'openai' && (
-                  <span className="ml-2 text-xs text-red-700 font-normal">(actief)</span>
-                )}
-              </label>
-              <input
-                type="password"
-                value={openaiKey}
-                onChange={(e) => setOpenaiKey(e.target.value)}
-                className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
-                placeholder="sk-..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-stone-700 text-sm font-medium mb-2">
-                Claude API Key
-                {aiProvider === 'claude' && (
-                  <span className="ml-2 text-xs text-red-700 font-normal">(actief)</span>
-                )}
-              </label>
-              <input
-                type="password"
-                value={claudeKey}
-                onChange={(e) => setClaudeKey(e.target.value)}
-                className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
-                placeholder="sk-ant-..."
-              />
-            </div>
+            <p className="text-stone-700 text-sm">
+              OpenAI: {me.hasOpenAI ? '✅ ingesteld' : '❌ niet ingesteld'}
+            </p>
+            <p className="text-stone-700 text-sm">
+              Claude: {me.hasClaude ? '✅ ingesteld' : '❌ niet ingesteld'}
+            </p>
           </div>
 
           <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-5">
