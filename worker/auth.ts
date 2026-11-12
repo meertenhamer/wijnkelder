@@ -68,12 +68,28 @@ async function verifyAccessJwt(token: string, teamDomain: string, aud: string): 
   return payload.email ? payload.email.toLowerCase() : null;
 }
 
+// Leest de uitgever (iss) uit het token zonder te controleren; alleen gebruikt om
+// te kiezen welk van de toegestane teamdomeinen de sleutels levert.
+function issuerDomain(token: string): string | null {
+  try {
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(token.split('.')[1] ?? ''))) as { iss?: string };
+    return payload.iss?.replace(/^https:\/\//, '') ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getUserEmail(request: Request, env: Env): Promise<string | null> {
   if (env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD) {
     const token = request.headers.get('Cf-Access-Jwt-Assertion');
     if (!token) return null;
+    // ACCESS_TEAM_DOMAIN mag meerdere domeinen bevatten, gescheiden door komma's
+    // (bijv. na het hernoemen van het Zero Trust-team).
+    const allowed = env.ACCESS_TEAM_DOMAIN.split(',').map((d) => d.trim()).filter(Boolean);
+    const teamDomain = issuerDomain(token);
+    if (!teamDomain || !allowed.includes(teamDomain)) return null;
     try {
-      return await verifyAccessJwt(token, env.ACCESS_TEAM_DOMAIN, env.ACCESS_AUD);
+      return await verifyAccessJwt(token, teamDomain, env.ACCESS_AUD);
     } catch (err) {
       console.error('Access-token controle mislukt', err);
       return null;

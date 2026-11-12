@@ -9,7 +9,7 @@ export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
   // Cloudflare Access (instellen in wrangler.jsonc)
-  ACCESS_TEAM_DOMAIN?: string; // bijv. "meertenhamer.cloudflareaccess.com"
+  ACCESS_TEAM_DOMAIN?: string; // bijv. "meertenhamer.cloudflareaccess.com" (meerdere: komma-gescheiden)
   ACCESS_AUD?: string; // "Application Audience (AUD) Tag" van de Access-app
   // Alleen voor lokaal ontwikkelen (.dev.vars), nooit in productie zetten
   DEV_USER_EMAIL?: string;
