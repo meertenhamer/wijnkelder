@@ -15,6 +15,7 @@
     "db:migrate:local": "wrangler d1 migrations apply wijnkelder --local"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@capacitor/app": "^6.0.3",
     "@capacitor/core": "^6.2.1",
     "@capacitor/ios": "^6.2.1",

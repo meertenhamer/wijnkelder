@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import type { Wine, WineLocation } from '../types/wine';
+import type { Wine, WineLocation, WineType } from '../types/wine';
 import { storage } from '../services/storage';
 import { fetchWineInfo, type WineInfo } from '../services/ai';
 import { LocationRow } from './LocationRow';
@@ -27,6 +27,9 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Lukt het ophalen niet, dan mag je toch bewaren (soort kies je dan zelf)
+  const [aiFailed, setAiFailed] = useState(false);
+  const [manualType, setManualType] = useState<WineType>('rood');
 
   const yearNum = parseInt(year);
   const canLookup = name.trim().length > 0 && yearNum > 1800;
@@ -46,13 +49,14 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
       return result;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kon geen wijninformatie ophalen');
+      setAiFailed(true);
       return null;
     } finally {
       setFetching(false);
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (skipInfo = false) => {
     if (!name.trim()) {
       setError('Vul een naam in');
       return;
@@ -62,7 +66,7 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
       return;
     }
     setSaving(true);
-    const details = info ?? (await lookup());
+    const details: Partial<WineInfo> | null = skipInfo ? { type: manualType } : info ?? (await lookup());
     if (!details) {
       setSaving(false);
       return;
@@ -70,11 +74,11 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
     const saved = await storage.saveWine({
       name: name.trim(),
       year: yearNum,
-      grapes: grapes.trim() || details.grapes,
+      grapes: grapes.trim() || details.grapes || undefined,
       quantity,
       country: details.country,
       region: details.region,
-      type: details.type,
+      type: details.type ?? manualType,
       bestBefore: details.bestBefore,
       tasteProfile: details.tasteProfile,
       pairingAdvice: details.pairingAdvice,
@@ -109,7 +113,7 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
           <h1 id="add-title" className="text-[17px] font-semibold">Nieuwe wijn</h1>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={busy || !name.trim()}
             className="justify-self-end h-11 px-2 text-[17px] font-semibold text-wine disabled:text-faint flex items-center gap-2"
           >
@@ -176,6 +180,35 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
             </Group>
 
             {error && <ErrorNote>{error}</ErrorNote>}
+
+            {aiFailed && !info && (
+              <Section title="Toch bewaren" footer="Land, regio, smaak en drinkvenster kun je later invullen via Wijzig.">
+                <Group>
+                  <label className="relative flex items-center justify-between gap-3 min-h-12 px-4">
+                    <span className="text-base">Soort</span>
+                    <span className="flex items-center gap-2 text-[15px] text-muted"><TypeDot type={manualType} size={8} />{typeLabels[manualType]}</span>
+                    <select
+                      value={manualType}
+                      onChange={(e) => setManualType(e.target.value as WineType)}
+                      className="absolute inset-0 opacity-0 w-full cursor-pointer"
+                      aria-label="Soort"
+                    >
+                      {(Object.keys(typeLabels) as WineType[]).map((t) => (
+                        <option key={t} value={t}>{typeLabels[t]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleSave(true)}
+                    disabled={busy || !name.trim()}
+                    className="w-full min-h-12 text-base text-wine disabled:text-faint active:bg-control"
+                  >
+                    Bewaar zonder wijninformatie
+                  </button>
+                </Group>
+              </Section>
+            )}
 
             <Section
               title="Wijninformatie"

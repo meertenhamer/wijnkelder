@@ -3,6 +3,7 @@
 // - /api/* gaat langs deze Worker: wijnen, locaties, instellingen en AI-aanroepen.
 // - Inloggen gebeurt door Cloudflare Access; deze Worker controleert het Access-token.
 
+import Anthropic from '@anthropic-ai/sdk';
 import { getUserEmail } from './auth';
 
 export interface Env {
@@ -144,24 +145,48 @@ async function getProvider(env: Env, user: string): Promise<AiProvider> {
 async function callAI(env: Env, provider: AiProvider, prompt: string): Promise<string> {
   if (provider === 'claude') {
     if (!env.ANTHROPIC_API_KEY) throw new HttpError(500, 'Er is geen Claude API key ingesteld op de server.');
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
+    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 60_000 });
+    try {
+      const response = await client.beta.messages.create({
         model: 'claude-sonnet-5-5',
-        max_tokens: 1024,
+        max_tokens: 16000,
+        // Eenvoudige JSON-opdracht: weinig nadenken houdt het snel
+        output_config: { effort: 'low' },
+        // Bij een (onterechte) weigering automatisch een ander model laten antwoorden
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
         messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-    const data = (await res.json()) as { content?: { text?: string }[]; error?: { message?: string } };
-    if (!res.ok) throw new HttpError(502, data.error?.message || 'Claude API fout');
-    const text = data.content?.[0]?.text;
-    if (!text) throw new HttpError(502, 'Geen antwoord van Claude');
-    return text;
+      });
+      if (response.stop_reason === 'refusal') {
+        throw new HttpError(502, 'Claude wilde deze vraag niet beantwoorden. Probeer het anders te formuleren.');
+      }
+      // Het antwoord kan met een denkblok beginnen: pak alleen de tekstblokken
+      const text = response.content
+        .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === 'text')
+        .map((block) => block.text)
+        .join('');
+      if (!text) {
+        console.error('Claude gaf geen tekst terug', response.stop_reason, response.content.map((b) => b.type));
+        throw new HttpError(502, 'Geen antwoord van Claude');
+      }
+      return text;
+    } catch (err) {
+      if (err instanceof HttpError) throw err;
+      if (err instanceof Anthropic.RateLimitError) {
+        throw new HttpError(503, 'Claude is even te druk bezet. Probeer het over een minuut opnieuw.');
+      }
+      if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
+        console.error('Claude-sleutel geweigerd', err.status, err.message);
+        throw new HttpError(500, 'De Claude API key op de server werkt niet (meer).');
+      }
+      if (err instanceof Anthropic.APIError) {
+        console.error('Claude API fout', err.status, err.message);
+        throw new HttpError(502, err.status === 529
+          ? 'Claude is even overbelast. Probeer het zo opnieuw.'
+          : `Claude gaf een fout (${err.status ?? 'geen verbinding'}).`);
+      }
+      throw err;
+    }
   }
 
   if (!env.OPENAI_API_KEY) throw new HttpError(500, 'Er is geen OpenAI API key ingesteld op de server.');
@@ -175,7 +200,10 @@ async function callAI(env: Env, provider: AiProvider, prompt: string): Promise<s
     }),
   });
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[]; error?: { message?: string } };
-  if (!res.ok) throw new HttpError(502, data.error?.message || 'OpenAI API fout');
+  if (!res.ok) {
+    console.error('OpenAI API fout', res.status, data.error?.message);
+    throw new HttpError(502, data.error?.message || 'OpenAI API fout');
+  }
   const text = data.choices?.[0]?.message?.content;
   if (!text) throw new HttpError(502, 'Geen antwoord van OpenAI');
   return text;
