@@ -1,7 +1,7 @@
 import type { Wine, WineType } from '../types/wine';
 import { api } from './storage';
 
-interface WineInfo {
+export interface WineInfo {
   grapes: string;
   country: string;
   region: string;
@@ -9,17 +9,6 @@ interface WineInfo {
   bestBefore: string;
   tasteProfile: string;
   pairingAdvice: string;
-  funFact: string;
-}
-
-interface WineInfoDutch {
-  druif: string;
-  land: string;
-  regio: string;
-  soort: WineType;
-  bestOpDronk: string;
-  smaakprofiel: string;
-  pairingAdvies: string;
   funFact: string;
 }
 
@@ -83,26 +72,6 @@ Antwoord ALLEEN met de JSON, geen extra tekst.`;
   } catch {
     throw new Error('Kon wijn informatie niet verwerken');
   }
-}
-
-// Voor de WineSearch pagina - geeft Nederlandse veldnamen terug
-export async function getWineInfo(
-  wineName: string,
-  year: number,
-  existingGrapes?: string
-): Promise<WineInfoDutch> {
-  const info = await fetchWineInfo(wineName, year, existingGrapes);
-
-  return {
-    druif: info.grapes,
-    land: info.country,
-    regio: info.region,
-    soort: info.type,
-    bestOpDronk: info.bestBefore,
-    smaakprofiel: info.tasteProfile,
-    pairingAdvies: info.pairingAdvice,
-    funFact: info.funFact
-  };
 }
 
 // Voor de FoodPairing pagina - zoekt wijnen uit de kelder die passen bij een gerecht

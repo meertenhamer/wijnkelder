@@ -1,298 +1,159 @@
+import type { ReactNode } from 'react';
 import type { Wine, WineType } from '../types/wine';
+import { Group, Screen, Section, typeBarClass, typeLabels, TypeDot } from './ui';
 
 interface DashboardProps {
   wines: Wine[];
-  onBack: () => void;
+  onOpenWine: (wine: Wine) => void;
 }
 
-function countByField(wines: Wine[], field: keyof Wine): { label: string; count: number }[] {
-  const map: Record<string, number> = {};
-  for (const wine of wines) {
-    const val = wine[field];
-    if (val && typeof val === 'string') {
-      map[val] = (map[val] || 0) + 1;
-    }
-  }
-  return Object.entries(map)
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
+function countBy(values: (string | undefined)[]): { label: string; count: number }[] {
+  const map = new Map<string, number>();
+  for (const v of values) if (v) map.set(v, (map.get(v) || 0) + 1);
+  return [...map.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count);
 }
 
-function extractTasteWords(wines: Wine[]): { word: string; count: number }[] {
-  const stopWords = new Set(['en', 'met', 'van', 'de', 'het', 'een', 'in', 'op', 'te', 'is', 'dat', 'die', 'voor', 'aan', 'er', 'maar', 'om', 'ook', 'als', 'bij', 'nog', 'wel', 'naar', 'dan', 'al', 'zo', 'uit', 'tot', 'wat', 'veel', 'door', 'over', 'na']);
-  const map: Record<string, number> = {};
-  for (const wine of wines) {
-    if (!wine.tasteProfile) continue;
-    const words = wine.tasteProfile.toLowerCase()
-      .replace(/[.,;:!?()]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length > 2 && !stopWords.has(w));
-    for (const word of words) {
-      map[word] = (map[word] || 0) + 1;
-    }
-  }
-  return Object.entries(map)
-    .map(([word, count]) => ({ word, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 12);
+function topGrapes(wines: Wine[]) {
+  return countBy(
+    wines.flatMap((w) =>
+      (w.grapes || '')
+        .split(/[,/&]+/)
+        .map((g) => g.trim().replace(/\s*\(.*\)$/, ''))
+        .filter(Boolean)
+        .map((g) => g.charAt(0).toUpperCase() + g.slice(1).toLowerCase())
+    )
+  ).slice(0, 6);
 }
 
-function extractTopGrapes(wines: Wine[]): { label: string; count: number }[] {
-  const map: Record<string, number> = {};
-  for (const wine of wines) {
-    if (!wine.grapes) continue;
-    const grapes = wine.grapes.split(/[,/&]+/).map(g => g.trim()).filter(Boolean);
-    for (const grape of grapes) {
-      const normalized = grape.charAt(0).toUpperCase() + grape.slice(1).toLowerCase();
-      map[normalized] = (map[normalized] || 0) + 1;
-    }
-  }
-  return Object.entries(map)
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+const STOP = new Set(['en', 'met', 'van', 'de', 'het', 'een', 'in', 'op', 'te', 'is', 'dat', 'die', 'voor', 'aan', 'er', 'maar', 'om', 'ook', 'als', 'bij', 'nog', 'wel', 'naar', 'dan', 'al', 'zo', 'uit', 'tot', 'wat', 'veel', 'door', 'over', 'na', 'tonen', 'aroma\'s', 'hints', 'lichte', 'goede']);
+
+function tasteWords(wines: Wine[]) {
+  return countBy(
+    wines.flatMap((w) =>
+      (w.tasteProfile || '')
+        .toLowerCase()
+        .replace(/[.,;:!?()]/g, '')
+        .split(/\s+/)
+        .filter((x) => x.length > 2 && !STOP.has(x))
+    )
+  ).slice(0, 12);
 }
 
-const typeColors: Record<WineType, string> = {
-  rood: 'bg-red-800',
-  wit: 'bg-amber-500',
-  rosé: 'bg-pink-400',
-  bruisend: 'bg-amber-300',
-};
+function BarList({ items }: { items: { label: string; count: number }[] }) {
+  const max = items[0]?.count || 1;
+  return (
+    <Group className="!divide-y-0 py-1.5">
+      {items.map(({ label, count }) => (
+        <div key={label} className="grid grid-cols-[minmax(0,7.5rem)_1fr_2rem] items-center gap-2.5 h-9 px-4 text-[15px]">
+          <span className="truncate">{label}</span>
+          <span className="h-2 bg-control rounded-full overflow-hidden">
+            <span className="block h-full bg-stone-600 rounded-full" style={{ width: `${(count / max) * 100}%` }} />
+          </span>
+          <span className="text-right text-muted tabular-nums">{count}</span>
+        </div>
+      ))}
+    </Group>
+  );
+}
 
-const typeTextColors: Record<WineType, string> = {
-  rood: 'text-red-800',
-  wit: 'text-amber-600',
-  rosé: 'text-pink-500',
-  bruisend: 'text-amber-400',
-};
+function Stat({ value, label, className = '' }: { value: ReactNode; label: string; className?: string }) {
+  return (
+    <div className={`px-4 py-3.5 flex flex-col gap-0.5 ${className}`}>
+      <span className="text-[28px] leading-8 font-bold tracking-tight tabular-nums">{value}</span>
+      <span className="text-sm text-muted">{label}</span>
+    </div>
+  );
+}
 
-export function Dashboard({ wines, onBack }: DashboardProps) {
-  const totalBottles = wines.reduce((sum, w) => sum + w.quantity, 0);
-  const inStock = wines.filter(w => w.quantity > 0);
-  const ratedWines = wines.filter(w => w.rating);
-  const avgRating = ratedWines.length > 0
-    ? (ratedWines.reduce((sum, w) => sum + (w.rating || 0), 0) / ratedWines.length).toFixed(1)
-    : null;
-
-  const byType = countByField(wines, 'type');
-  const totalForType = byType.reduce((s, t) => s + t.count, 0);
-  const byCountry = countByField(wines, 'country').slice(0, 5);
-  const byRegion = countByField(wines, 'region').slice(0, 5);
-  const topGrapes = extractTopGrapes(wines);
-  const tasteWords = extractTasteWords(wines);
-
-  const topRated = [...wines]
-    .filter(w => w.rating)
-    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-    .slice(0, 3);
-
-  const years = wines.map(w => w.year).sort();
-  const oldestYear = years.length > 0 ? years[0] : null;
-  const newestYear = years.length > 0 ? years[years.length - 1] : null;
-
+export function Dashboard({ wines, onOpenWine }: DashboardProps) {
   if (wines.length === 0) {
     return (
-      <div className="flex-1 overflow-y-auto bg-stone-100 p-4 pt-8">
-        <div className="max-w-md mx-auto">
-          <button
-            onClick={onBack}
-            className="mb-4 text-red-900 font-medium flex items-center gap-2"
-            
-          >
-            ← Terug
-          </button>
-          <h1 className="text-2xl font-bold text-stone-800 mb-6">Dashboard</h1>
-          <div className="bg-white rounded-2xl p-8 border border-stone-200 shadow-sm text-center">
-            <p className="text-stone-500">Voeg eerst wijnen toe om je dashboard te zien.</p>
-          </div>
-        </div>
-      </div>
+      <Screen title="Overzicht">
+        <p className="text-[15px] text-muted text-center py-16">Voeg eerst wijnen toe om je overzicht te zien.</p>
+      </Screen>
     );
   }
 
+  const bottles = wines.reduce((s, w) => s + w.quantity, 0);
+  const inStock = wines.filter((w) => w.quantity > 0).length;
+  const rated = wines.filter((w) => w.rating);
+  const avg = rated.length ? (rated.reduce((s, w) => s + (w.rating || 0), 0) / rated.length).toFixed(1).replace('.', ',') : '–';
+  const years = wines.map((w) => w.year).filter((y) => y > 1800);
+  const oldest = years.length ? Math.min(...years) : '–';
+  const newest = years.length ? Math.max(...years) : '–';
+
+  const byType = countBy(wines.map((w) => w.type));
+  const countries = countBy(wines.map((w) => w.country)).slice(0, 5);
+  const regions = countBy(wines.map((w) => w.region)).slice(0, 5);
+  const grapes = topGrapes(wines);
+  const words = tasteWords(wines);
+  const best = [...rated].sort((a, b) => (b.rating || 0) - (a.rating || 0) || b.year - a.year).slice(0, 5);
+
   return (
-    <div className="flex-1 overflow-y-auto bg-stone-100 p-4 pt-8 pb-12">
-      <div className="max-w-md mx-auto">
-        <button
-          onClick={onBack}
-          className="mb-4 text-red-900 font-medium flex items-center gap-2"
-          
-        >
-          ← Terug
-        </button>
-
-        <h1 className="text-2xl font-bold text-stone-800 mb-6">Dashboard</h1>
-
-        {/* Overzicht */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm text-center">
-            <p className="text-3xl font-bold text-red-900">{wines.length}</p>
-            <p className="text-stone-500 text-sm">Wijnen</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm text-center">
-            <p className="text-3xl font-bold text-red-900">{totalBottles}</p>
-            <p className="text-stone-500 text-sm">Flessen</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm text-center">
-            <p className="text-3xl font-bold text-red-900">{inStock.length}</p>
-            <p className="text-stone-500 text-sm">Op voorraad</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm text-center">
-            <p className="text-3xl font-bold text-red-900">{avgRating || '-'}</p>
-            <p className="text-stone-500 text-sm">Gem. beoordeling</p>
-          </div>
-        </div>
-
-        {/* Type verdeling */}
-        <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm mb-4">
-          <h2 className="text-sm font-semibold text-stone-800 mb-3">Verdeling per type</h2>
-          <div className="flex rounded-xl overflow-hidden h-6 mb-3">
-            {byType.map(({ label, count }) => (
-              <div
-                key={label}
-                className={`${typeColors[label as WineType] || 'bg-stone-300'} transition-all`}
-                style={{ width: `${(count / totalForType) * 100}%` }}
-                title={`${label}: ${count}`}
-              />
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {byType.map(({ label, count }) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <span className={`w-3 h-3 rounded-full ${typeColors[label as WineType] || 'bg-stone-300'}`} />
-                <span className={`text-sm font-medium ${typeTextColors[label as WineType] || 'text-stone-600'}`}>
-                  {label}
-                </span>
-                <span className="text-stone-400 text-sm">({count})</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top landen */}
-        {byCountry.length > 0 && (
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm mb-4">
-            <h2 className="text-sm font-semibold text-stone-800 mb-3">Top landen</h2>
-            <div className="space-y-2">
-              {byCountry.map(({ label, count }, i) => (
-                <div key={label} className="flex items-center gap-3">
-                  <span className="text-stone-400 text-xs w-4">{i + 1}.</span>
-                  <span className="text-stone-800 text-sm flex-1">{label}</span>
-                  <div className="w-24 bg-stone-100 rounded-full h-2">
-                    <div
-                      className="bg-red-900 h-2 rounded-full"
-                      style={{ width: `${(count / byCountry[0].count) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-stone-500 text-xs w-6 text-right">{count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Top regio's */}
-        {byRegion.length > 0 && (
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm mb-4">
-            <h2 className="text-sm font-semibold text-stone-800 mb-3">Top regio's</h2>
-            <div className="space-y-2">
-              {byRegion.map(({ label, count }, i) => (
-                <div key={label} className="flex items-center gap-3">
-                  <span className="text-stone-400 text-xs w-4">{i + 1}.</span>
-                  <span className="text-stone-800 text-sm flex-1">{label}</span>
-                  <div className="w-24 bg-stone-100 rounded-full h-2">
-                    <div
-                      className="bg-red-900 h-2 rounded-full"
-                      style={{ width: `${(count / byRegion[0].count) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-stone-500 text-xs w-6 text-right">{count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Druivensoorten */}
-        {topGrapes.length > 0 && (
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm mb-4">
-            <h2 className="text-sm font-semibold text-stone-800 mb-3">Favoriete druiven</h2>
-            <div className="flex flex-wrap gap-2">
-              {topGrapes.map(({ label, count }) => (
-                <span
-                  key={label}
-                  className="bg-red-50 text-red-900 border border-red-200 px-3 py-1.5 rounded-full text-sm font-medium"
-                >
-                  {label} <span className="text-red-400">({count})</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Smaakprofiel woorden */}
-        {tasteWords.length > 0 && (
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm mb-4">
-            <h2 className="text-sm font-semibold text-stone-800 mb-3">Smaakprofiel</h2>
-            <div className="flex flex-wrap gap-2">
-              {tasteWords.map(({ word, count }) => {
-                const maxCount = tasteWords[0].count;
-                const size = 0.75 + (count / maxCount) * 0.5;
-                const opacity = 0.4 + (count / maxCount) * 0.6;
-                return (
-                  <span
-                    key={word}
-                    className="text-red-900 font-medium"
-                    style={{ fontSize: `${size}rem`, opacity }}
-                  >
-                    {word}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Best beoordeeld */}
-        {topRated.length > 0 && (
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm mb-4">
-            <h2 className="text-sm font-semibold text-stone-800 mb-3">Best beoordeeld</h2>
-            <div className="space-y-3">
-              {topRated.map((wine, i) => (
-                <div key={wine.id} className="flex items-center gap-3">
-                  <span className="text-lg">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-stone-800 font-medium text-sm truncate">{wine.name}</p>
-                    <p className="text-stone-400 text-xs">{wine.year} · {wine.type}</p>
-                  </div>
-                  <span className="text-amber-500 text-sm">{'★'.repeat(wine.rating || 0)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Jaargang spread */}
-        {oldestYear && newestYear && (
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
-            <h2 className="text-sm font-semibold text-stone-800 mb-3">Jaargangen</h2>
-            <div className="flex justify-between items-center">
-              <div className="text-center">
-                <p className="text-stone-400 text-xs">Oudste</p>
-                <p className="text-stone-800 font-bold text-lg">{oldestYear}</p>
-              </div>
-              <div className="flex-1 mx-4 h-0.5 bg-stone-200 relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-red-900 to-red-400 rounded-full" />
-              </div>
-              <div className="text-center">
-                <p className="text-stone-400 text-xs">Nieuwste</p>
-                <p className="text-stone-800 font-bold text-lg">{newestYear}</p>
-              </div>
-            </div>
-          </div>
-        )}
+    <Screen title="Overzicht">
+      <div className="bg-surface rounded-[14px] grid grid-cols-2">
+        <Stat value={bottles} label={bottles === 1 ? 'fles' : 'flessen'} className="border-r border-b border-line" />
+        <Stat value={<>{inStock}<span className="text-[17px] font-medium text-muted"> / {wines.length}</span></>} label="wijnen op voorraad" className="border-b border-line" />
+        <Stat value={avg} label={`gem. beoordeling (${rated.length})`} className="border-r border-line" />
+        <Stat value={<>{oldest}<span className="text-[17px] font-medium text-muted"> – {newest}</span></>} label="jaargangen" />
       </div>
-    </div>
+
+      <Section title="Soort">
+        <div className="bg-surface rounded-[14px] p-4 flex flex-col gap-3.5">
+          <div
+            role="img"
+            aria-label={byType.map((t) => `${typeLabels[t.label as WineType] ?? t.label} ${t.count}`).join(', ')}
+            className="flex h-3 rounded-full overflow-hidden gap-0.5"
+          >
+            {byType.map((t) => (
+              <span key={t.label} className={typeBarClass(t.label as WineType)} style={{ flex: t.count }} />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            {byType.map((t) => (
+              <span key={t.label} className="flex items-center gap-2">
+                <TypeDot type={t.label as WineType} size={8} />
+                {typeLabels[t.label as WineType] ?? t.label}
+                <span className="ml-auto text-muted tabular-nums">{t.count}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {countries.length > 0 && <Section title="Landen"><BarList items={countries} /></Section>}
+      {regions.length > 0 && <Section title="Regio's"><BarList items={regions} /></Section>}
+      {grapes.length > 0 && <Section title="Druiven"><BarList items={grapes} /></Section>}
+
+      {best.length > 0 && (
+        <Section title="Hoogst beoordeeld">
+          <Group>
+            {best.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => onOpenWine(w)}
+                className="w-full flex justify-between items-center gap-3 min-h-12 px-4 text-left text-[15px] active:bg-control"
+              >
+                <span className="min-w-0 truncate">{w.name} <span className="text-muted">{w.year}</span></span>
+                <span className="text-warn font-semibold tabular-nums">{w.rating},0</span>
+              </button>
+            ))}
+          </Group>
+        </Section>
+      )}
+
+      {words.length > 0 && (
+        <Section title="Wat je proeft">
+          <div className="flex flex-wrap gap-1.5">
+            {words.map((w) => (
+              <span key={w.label} className="px-2.5 py-1.5 rounded-lg bg-surface text-sm">
+                {w.label} <span className="text-muted tabular-nums">{w.count}</span>
+              </span>
+            ))}
+          </div>
+        </Section>
+      )}
+    </Screen>
   );
 }

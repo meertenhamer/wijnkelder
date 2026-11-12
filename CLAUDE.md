@@ -20,13 +20,13 @@ npm run preview    # Preview production build locally
 
 ### State & Routing
 
-There is no router library. `App.tsx` manages all navigation via a `page` state string (`'home' | 'new' | 'cellar' | 'search' | 'pairing'`) and conditionally renders the corresponding component. `App.tsx` also owns the top-level `wines: Wine[]` state and passes down callbacks (`onSave`, `onUpdate`, `onDelete`) to child components.
+There is no router library. `App.tsx` holds a `tab` state (`'kelder' | 'spijs' | 'overzicht' | 'instellingen'`, rendered with a bottom `TabBar`), an `openWineId` for the pushed `WineDetail` screen, and an `adding` flag for the `AddWineSheet` bottom sheet. `App.tsx` also owns the top-level `wines` and `locations` state and passes down callbacks to child components.
 
 ### Data Flow
 
 Wine data flows top-down from `App.tsx`. When a component modifies data it calls a callback, which updates both the API/D1 and the React state in the parent. Components do not interact with each other directly.
 
-**Adding a wine:** `NewWineForm` collects user input → calls `fetchWineInfo()` (via `/api/ai`) to get AI-enriched metadata → calls `storage.saveWine()` → fires `onSave(wine)` callback back to `App.tsx`.
+**Adding a wine:** `AddWineSheet` collects name/year/etc. → optionally previews `fetchWineInfo()` (via `/api/ai`), or fetches it on save → `storage.saveWine()` → `onSaved(wine)` back to `App.tsx`, which opens the new wine.
 
 **Food pairing:** `FoodPairing` sends the user's dish text + their in-stock wines to `getFoodPairing()` (via `/api/ai`), which returns ranked recommendations referencing wines by index in the submitted list.
 
@@ -35,7 +35,7 @@ Wine data flows top-down from `App.tsx`. When a component modifies data it calls
 - **`worker/index.ts`** — Cloudflare Worker: serves `dist/` via the ASSETS binding and handles `/api/*` (`me`, `settings`, `wines`, `locations`, `ai`). Converts snake_case (D1) ↔ camelCase (app). AI keys are Worker secrets (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) and never reach the client.
 - **`worker/auth.ts`** — Verifies the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) using `ACCESS_TEAM_DOMAIN` + `ACCESS_AUD`; the user's email is the user id. Locally falls back to `DEV_USER_EMAIL`.
 - **`src/services/storage.ts`** — Frontend API client (`api()` helper + `storage` object).
-- **`src/services/ai.ts`** — Dutch prompts requesting structured JSON. Three functions: `fetchWineInfo`, `getWineInfo` (Dutch field names), `getFoodPairing`. Calls go through `/api/ai`; the server picks OpenAI or Claude based on the user's setting.
+- **`src/services/ai.ts`** — Dutch prompts requesting structured JSON: `fetchWineInfo` and `getFoodPairing`. Calls go through `/api/ai`; the server picks OpenAI or Claude based on the user's setting.
 
 ### Database Tables (D1, schema in `migrations/`)
 
@@ -53,6 +53,7 @@ Defined in `src/types/wine.ts`. Fields split into:
 ### UI Conventions
 
 - All UI text, error messages, and OpenAI prompts are in **Dutch**
-- Styling uses Tailwind CSS 4 with a stone/warm palette; wine type colors: rood=`red-800`, wit=`amber-500`, rosé=`pink-400`, bruisend=`amber-300`
+- iOS-style UI: large titles, grouped lists (`Group`/`Row`/`Section` in `src/components/ui.tsx`), bottom tab bar, line icons (`Icon` in `ui.tsx`), no emoji
+- Tailwind CSS 4 with design tokens in `src/index.css` (`@theme`): `ground`, `surface`, `ink`, `muted`, `line`, `control`, one accent `wine` (#7F1D2D); wine types as dots/bars only: `type-rood`, `type-wit`, `type-rose`, `type-bruisend`
 - Mobile-first with `safe-area-inset` padding for notched devices
-- `WineCard` is a modal (fixed overlay) that doubles as both detail view and inline editor
+- `WineDetail` is a pushed screen: quantity, location, rating and notes save immediately; "Wijzig" edits the other fields

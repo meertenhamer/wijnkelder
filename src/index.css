@@ -1,9 +1,36 @@
 @import "tailwindcss";
 
+/* Ontwerptokens — één accentkleur (wijnrood), verder neutrale tinten */
+@theme {
+  --color-ground: #F5F3F0;   /* achtergrond van schermen */
+  --color-surface: #FFFFFF;  /* gegroepeerde lijsten en kaarten */
+  --color-ink: #1C1917;      /* hoofdtekst */
+  --color-muted: #6B6560;    /* secundaire tekst (4.5:1 op wit en ground) */
+  --color-faint: #B8B2AB;    /* chevrons en decoratie, nooit tekst */
+  --color-line: #EEEAE5;     /* scheidingslijnen in lijsten */
+  --color-edge: #E2DDD7;     /* randen van balken */
+  --color-fill: #EAE6E1;     /* zoekveld */
+  --color-control: #F0EDE9;  /* steppers en segmented controls */
+  --color-wine: #7F1D2D;     /* accent: alles wat je kunt aantikken */
+  --color-wine-dark: #5E1521;
+  --color-ok: #15803D;
+  --color-warn: #B45309;
+  --color-danger: #B91C1C;
+
+  /* Wijnsoorten (alleen als bolletje of balk, nooit als tekstkleur) */
+  --color-type-rood: #7F1D2D;
+  --color-type-wit: #D4A72C;
+  --color-type-rose: #E79AAE;
+  --color-type-bruisend: #E3CD72;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
 /* Vergrendel de pagina zelf — echte apps scrollen nooit als geheel */
 html {
   height: 100%;
   overflow: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -12,7 +39,11 @@ body {
   overflow: hidden;
   overscroll-behavior: none; /* Geen rubber-band effect op iOS */
   box-sizing: border-box;
-  background-color: #f5f5f4; /* stone-100 — zelfde als app-achtergrond */
+  background-color: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
   /* Safe area voor iPhone notch/Dynamic Island — alleen top en zijkanten */
   padding-top: env(safe-area-inset-top);
   padding-left: env(safe-area-inset-left);
@@ -25,4 +56,29 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Sheet die van onderen in beeld schuift */
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes push-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-sheet { animation: sheet-in 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
+.animate-fade { animation: fade-in 0.2s ease-out; }
+.animate-push { animation: push-in 0.22s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet, .animate-fade, .animate-push { animation: none; }
 }

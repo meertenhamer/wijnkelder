@@ -4,8 +4,8 @@
   "description": "Beheer je wijnvoorraad",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf7f3",
-  "theme_color": "#7c1d1d",
+  "background_color": "#F5F3F0",
+  "theme_color": "#F5F3F0",
   "orientation": "portrait",
   "icons": [
     {

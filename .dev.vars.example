@@ -1,4 +1,7 @@
 # Kopieer naar .dev.vars voor lokaal ontwikkelen met `npm run dev:api`
 DEV_USER_EMAIL=jij@example.com
+# Zet Access lokaal uit (anders geldt de instelling uit wrangler.jsonc)
+ACCESS_TEAM_DOMAIN=
+ACCESS_AUD=
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=

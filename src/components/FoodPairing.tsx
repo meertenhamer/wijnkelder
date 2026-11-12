@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import type { Wine } from '../types/wine';
 import { getFoodPairing } from '../services/ai';
+import { Chevron, ErrorNote, Group, Screen, Section, Spinner } from './ui';
 
 interface FoodPairingProps {
   wines: Wine[];
-  onBack: () => void;
+  onOpenWine: (wine: Wine) => void;
 }
 
 interface Recommendation {
@@ -13,37 +14,29 @@ interface Recommendation {
   score: number;
 }
 
-export function FoodPairing({ wines, onBack }: FoodPairingProps) {
+export function FoodPairing({ wines, onOpenWine }: FoodPairingProps) {
   const [dish, setDish] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recommendations, setRecommendations] = useState<Recommendation[] | null>(null);
-  const [generalAdvice, setGeneralAdvice] = useState<string | null>(null);
+  const [result, setResult] = useState<{ dish: string; recommendations: Recommendation[]; advice: string } | null>(null);
+
+  const available = wines.filter((w) => w.quantity > 0);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setRecommendations(null);
-    setGeneralAdvice(null);
-
     if (!dish.trim()) {
-      setError('Voer een gerecht in');
+      setError('Beschrijf eerst wat je gaat eten');
       return;
     }
-
-    // Filter alleen wijnen met quantity > 0
-    const availableWines = wines.filter(w => w.quantity > 0);
-
-    if (availableWines.length === 0) {
-      setError('Je hebt geen wijnen in voorraad. Voeg eerst wijnen toe aan je kelder.');
+    if (available.length === 0) {
+      setError('Je hebt geen wijnen op voorraad.');
       return;
     }
-
     setLoading(true);
     try {
-      const result = await getFoodPairing(dish, availableWines);
-      setRecommendations(result.recommendations);
-      setGeneralAdvice(result.generalAdvice);
+      const r = await getFoodPairing(dish.trim(), available);
+      setResult({ dish: dish.trim(), recommendations: r.recommendations, advice: r.generalAdvice });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er ging iets mis');
     } finally {
@@ -51,134 +44,76 @@ export function FoodPairing({ wines, onBack }: FoodPairingProps) {
     }
   };
 
-  const handleReset = () => {
-    setDish('');
-    setRecommendations(null);
-    setGeneralAdvice(null);
-    setError(null);
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return 'bg-green-100 text-green-800';
-    if (score >= 70) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-orange-100 text-orange-800';
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 85) return 'Uitstekende match';
-    if (score >= 70) return 'Goede match';
-    return 'Redelijke match';
-  };
-
   return (
-    <div className="flex-1 overflow-y-auto bg-stone-100 p-4 pt-8">
-      <div className="max-w-md mx-auto">
+    <Screen
+      title="Spijs & wijn"
+      subtitle={`Kiest uit de ${available.length} ${available.length === 1 ? 'wijn' : 'wijnen'} die je op voorraad hebt`}
+    >
+      <form onSubmit={handleSearch} className="bg-surface rounded-[14px] px-4 py-3.5 flex flex-col gap-3">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] text-muted">Wat eet je?</span>
+          <textarea
+            value={dish}
+            onChange={(e) => setDish(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            rows={2}
+            placeholder="bijv. Lamsrack met rozemarijn en geroosterde groenten"
+            className="bg-transparent text-[17px] leading-6 text-ink placeholder:text-muted/70 outline-none resize-none"
+          />
+        </label>
         <button
-          onClick={onBack}
-          className="mb-4 text-red-900 font-medium flex items-center gap-2"
-          
+          type="submit"
+          disabled={loading}
+          className="h-11 rounded-[10px] bg-wine active:bg-wine-dark disabled:bg-wine/60 text-white text-base font-semibold flex items-center justify-center gap-2"
         >
-          ← Terug
+          {loading && <Spinner />}
+          {loading ? 'Even denken…' : 'Zoek een wijn'}
         </button>
+      </form>
 
-        <h1 className="text-2xl font-bold text-black mb-2">Wijn/Spijs Combinatie</h1>
-        <p className="text-stone-600 mb-6">
-          Voer een gerecht in en ontdek welke wijn uit jouw kelder het beste past.
-        </p>
+      {error && <ErrorNote>{error}</ErrorNote>}
 
-        {!recommendations ? (
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-1">
-                Wat ga je eten?
-              </label>
-              <textarea
-                value={dish}
-                onChange={(e) => setDish(e.target.value)}
-                className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-900 bg-white text-black resize-none"
-                placeholder="bijv. Gegrilde ribeye met truffeljus en geroosterde groenten"
-                rows={3}
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="bg-stone-200 rounded-lg p-3 text-sm text-stone-600">
-              <strong>{wines.filter(w => w.quantity > 0).length}</strong> wijnen beschikbaar in je kelder
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-red-900 text-white py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors disabled:opacity-50"
-            >
-              {loading ? 'AI zoekt de perfecte wijn...' : 'Vind de Perfecte Wijn'}
-            </button>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            <div className="bg-white rounded-xl p-4 shadow-md">
-              <p className="text-sm text-stone-500 mb-1">Gerecht:</p>
-              <p className="text-black font-medium">{dish}</p>
-            </div>
-
-            <h2 className="text-lg font-semibold text-black mt-6">Aanbevelingen</h2>
-
-            {recommendations.length === 0 ? (
-              <div className="bg-orange-50 rounded-xl p-4 text-orange-800">
-                Helaas geen passende wijnen gevonden in je kelder voor dit gerecht.
-              </div>
+      {result && !loading && (
+        <>
+          <Section title="Uit je kelder">
+            {result.recommendations.length === 0 ? (
+              <Group>
+                <p className="px-4 py-3.5 text-[15px] text-muted">Er past niets uit je kelder echt goed bij dit gerecht.</p>
+              </Group>
             ) : (
-              recommendations.map((rec, index) => (
-                <div key={rec.wine.id} className="bg-white rounded-xl p-4 shadow-md">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <span className="text-xs text-stone-400">#{index + 1}</span>
-                      <h3 className="text-lg font-bold text-black">{rec.wine.name}</h3>
-                      <p className="text-stone-600 text-sm">
-                        {rec.wine.year} • {rec.wine.type || 'onbekend'}
-                      </p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(rec.score)}`}>
-                      {rec.score}%
-                    </div>
-                  </div>
-
-                  <div className={`inline-block px-2 py-1 rounded text-xs font-medium mb-3 ${getScoreColor(rec.score)}`}>
-                    {getScoreLabel(rec.score)}
-                  </div>
-
-                  <p className="text-stone-600 text-sm">{rec.reason}</p>
-
-                  {rec.wine.country && (
-                    <p className="text-stone-400 text-xs mt-2">
-                      {rec.wine.country}{rec.wine.region && `, ${rec.wine.region}`}
-                    </p>
-                  )}
-                </div>
-              ))
+              <Group>
+                {result.recommendations.map((rec, i) => (
+                  <button
+                    key={rec.wine.id}
+                    type="button"
+                    onClick={() => onOpenWine(rec.wine)}
+                    className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left active:bg-control"
+                  >
+                    <span className="w-10 shrink-0 flex flex-col items-center">
+                      <span className={`text-xl font-bold tabular-nums ${i === 0 && rec.score >= 80 ? 'text-ok' : ''}`}>{rec.score}</span>
+                      <span className="text-[11px] text-muted">match</span>
+                    </span>
+                    <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+                      <span className="text-base font-semibold">{rec.wine.name}</span>
+                      <span className="text-sm text-muted">
+                        {[rec.wine.year, rec.wine.region, `${rec.wine.quantity} fl.`, rec.wine.location].filter(Boolean).join(' · ')}
+                      </span>
+                      <span className="text-sm leading-5 text-stone-700 mt-0.5">{rec.reason}</span>
+                    </span>
+                    <Chevron />
+                  </button>
+                ))}
+              </Group>
             )}
-
-            {generalAdvice && (
-              <div className="bg-red-50 rounded-xl p-4 border border-red-100">
-                <h3 className="font-semibold text-red-900 mb-2">💡 Sommelier Tip</h3>
-                <p className="text-red-800 text-sm">{generalAdvice}</p>
-              </div>
-            )}
-
-            <button
-              onClick={handleReset}
-              className="w-full bg-red-900 text-white py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors"
-            >
-              Nieuw Gerecht Zoeken
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+          </Section>
+          {result.advice && <p className="text-sm leading-5 text-muted px-1 -mt-3">{result.advice}</p>}
+        </>
+      )}
+    </Screen>
   );
 }

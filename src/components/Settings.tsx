@@ -1,170 +1,146 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { storage, type AiProvider, type Me } from '../services/storage';
-import type { WineLocation } from '../types/wine';
+import type { Wine, WineLocation } from '../types/wine';
+import { ErrorNote, Group, Icon, Screen, Section, Segmented } from './ui';
 
 interface SettingsProps {
   me: Me;
-  onBack: () => void;
+  wines: Wine[];
   locations: WineLocation[];
   onAddLocation: (name: string) => Promise<WineLocation | null>;
   onDeleteLocation: (id: string) => Promise<void>;
+  onLogout: () => void;
 }
 
-export function Settings({ me, onBack, locations, onAddLocation, onDeleteLocation }: SettingsProps) {
-  const [aiProvider, setAiProvider] = useState<AiProvider>('openai');
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+function initials(email: string) {
+  const local = email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim();
+  const parts = local.split(/\s+/);
+  return (parts.length > 1 ? parts[0][0] + parts[1][0] : local.slice(0, 2)).toUpperCase() || '?';
+}
+
+export function Settings({ me, wines, locations, onAddLocation, onDeleteLocation, onLogout }: SettingsProps) {
+  const [provider, setProvider] = useState<AiProvider>(storage.getAiProvider());
   const [newLocation, setNewLocation] = useState('');
-  const [addingLocation, setAddingLocation] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setAiProvider(storage.getAiProvider());
-  }, []);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaved(false);
-
-    await storage.saveAiProvider(aiProvider);
-
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const handleAddLocation = async () => {
-    const trimmed = newLocation.trim();
-    if (!trimmed) return;
-    setAddingLocation(true);
-    await onAddLocation(trimmed);
-    setAddingLocation(false);
-    setNewLocation('');
-  };
-
-  const handleDeleteLocation = async (id: string, name: string) => {
-    if (confirm(`Locatie "${name}" verwijderen? Wijnen met deze locatie behouden de tekst.`)) {
-      await onDeleteLocation(id);
+  const changeProvider = async (p: AiProvider) => {
+    const previous = provider;
+    setProvider(p);
+    const ok = await storage.saveAiProvider(p);
+    if (!ok) {
+      setProvider(previous);
+      setError('Kon de instelling niet opslaan.');
     }
   };
 
+  const hasKey = provider === 'claude' ? me.hasClaude : me.hasOpenAI;
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newLocation.trim();
+    if (!name) return;
+    setAdding(true);
+    await onAddLocation(name);
+    setAdding(false);
+    setNewLocation('');
+  };
+
+  const handleDelete = async (loc: WineLocation) => {
+    if (confirm(`Locatie "${loc.name}" verwijderen? Wijnen met deze locatie houden de naam.`)) {
+      await onDeleteLocation(loc.id);
+    }
+  };
+
+  const countAt = (name: string) => wines.filter((w) => w.location === name && w.quantity > 0).length;
+
   return (
-    <div className="flex-1 overflow-y-auto bg-stone-100 p-6 pt-8">
-      <div className="max-w-md mx-auto">
-        <button
-          onClick={onBack}
-          className="text-stone-600 hover:text-stone-800 mb-6 flex items-center gap-2"
-          
-        >
-          <span>←</span> Terug
-        </button>
+    <Screen title="Instellingen">
+      <div className="bg-surface rounded-[14px] flex items-center gap-3.5 px-4 py-3.5">
+        <span className="w-12 h-12 shrink-0 rounded-full bg-wine text-white flex items-center justify-center text-lg font-semibold">
+          {initials(me.email)}
+        </span>
+        <span className="flex flex-col min-w-0">
+          <span className="text-[17px] font-semibold truncate">{me.email}</span>
+          <span className="text-sm text-muted">Ingelogd met een code per mail</span>
+        </span>
+      </div>
 
-        <h1 className="text-3xl font-bold text-stone-800 mb-8">Instellingen</h1>
+      {error && <ErrorNote>{error}</ErrorNote>}
 
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-5">
-            <h2 className="text-lg font-semibold text-stone-800">AI Provider</h2>
-            <p className="text-stone-500 text-sm">
-              Kies welke AI gebruikt wordt voor wijn informatie en aanbevelingen.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setAiProvider('openai')}
-                className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${
-                  aiProvider === 'openai'
-                    ? 'bg-red-900 text-white shadow-md'
-                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                }`}
-              >
-                OpenAI
-              </button>
-              <button
-                onClick={() => setAiProvider('claude')}
-                className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${
-                  aiProvider === 'claude'
-                    ? 'bg-red-900 text-white shadow-md'
-                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                }`}
-              >
-                Claude
-              </button>
-            </div>
+      <Section
+        title="Wijninformatie"
+        footer="De AI vult land, regio, smaak en drinkvenster in en geeft spijs-wijnadvies."
+      >
+        <Group>
+          <div className="flex items-center justify-between min-h-[52px] pl-4 pr-3">
+            <span className="text-base">AI</span>
+            <Segmented
+              label="AI-provider"
+              value={provider}
+              onChange={changeProvider}
+              options={[
+                { value: 'claude', label: 'Claude' },
+                { value: 'openai', label: 'OpenAI' },
+              ]}
+            />
           </div>
-
-          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-3">
-            <h2 className="text-lg font-semibold text-stone-800">API Keys</h2>
-            <p className="text-stone-500 text-sm">
-              De keys staan veilig op de server en worden nooit naar je apparaat gestuurd.
-            </p>
-            <p className="text-stone-700 text-sm">
-              OpenAI: {me.hasOpenAI ? '✅ ingesteld' : '❌ niet ingesteld'}
-            </p>
-            <p className="text-stone-700 text-sm">
-              Claude: {me.hasClaude ? '✅ ingesteld' : '❌ niet ingesteld'}
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-5">
-            <h2 className="text-lg font-semibold text-stone-800">Locaties</h2>
-            <p className="text-stone-500 text-sm">
-              Beheer waar je wijnen liggen, bijv. Klimaatkast, Wijnrek of Wijnkast.
-            </p>
-
-            {locations.length > 0 ? (
-              <div className="space-y-2">
-                {locations.map((loc) => (
-                  <div
-                    key={loc.id}
-                    className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"
-                  >
-                    <span className="text-stone-800">📍 {loc.name}</span>
-                    <button
-                      onClick={() => handleDeleteLocation(loc.id, loc.name)}
-                      className="text-stone-400 hover:text-red-600 transition-all"
-                      aria-label={`${loc.name} verwijderen`}
-                    >
-                      🗑
-                    </button>
-                  </div>
-                ))}
-              </div>
+          <div className="flex items-center justify-between min-h-12 px-4">
+            <span className="text-base">API-sleutel</span>
+            {hasKey ? (
+              <span className="flex items-center gap-1.5 text-[15px] text-ok"><Icon.Check size={16} />Op de server</span>
             ) : (
-              <p className="text-stone-400 text-sm italic">Nog geen locaties toegevoegd.</p>
+              <span className="text-[15px] text-danger">Niet ingesteld</span>
             )}
+          </div>
+        </Group>
+      </Section>
 
-            <div className="flex gap-2">
+      <Section title="Locaties" footer="Wijnen met een verwijderde locatie houden die naam.">
+        <Group>
+          {locations.map((loc) => {
+            const n = countAt(loc.name);
+            return (
+              <div key={loc.id} className="flex items-center gap-3 min-h-12 pl-4 pr-2">
+                <span className="flex-1 text-base truncate">{loc.name}</span>
+                <span className="text-[15px] text-muted">{n === 0 ? 'leeg' : `${n} ${n === 1 ? 'wijn' : 'wijnen'}`}</span>
+                <button
+                  type="button"
+                  aria-label={`${loc.name} verwijderen`}
+                  onClick={() => handleDelete(loc)}
+                  className="w-10 h-10 flex items-center justify-center text-faint active:text-danger"
+                >
+                  <Icon.Trash size={18} />
+                </button>
+              </div>
+            );
+          })}
+          <form onSubmit={handleAdd} className="flex items-center gap-2.5 min-h-12 pl-4 pr-2">
+            <Icon.Plus size={18} className="text-wine shrink-0" />
+            <label className="flex-1 flex">
+              <span className="sr-only">Nieuwe locatie</span>
               <input
                 type="text"
                 value={newLocation}
                 onChange={(e) => setNewLocation(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddLocation();
-                  }
-                }}
-                placeholder="Nieuwe locatie..."
-                className="flex-1 bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-900"
+                placeholder="Locatie toevoegen"
+                className="flex-1 min-w-0 bg-transparent text-base text-ink placeholder:text-wine outline-none"
               />
-              <button
-                onClick={handleAddLocation}
-                disabled={addingLocation || !newLocation.trim()}
-                className="bg-red-900 hover:bg-red-800 disabled:bg-red-900/50 text-white font-medium px-5 rounded-xl transition-all disabled:cursor-not-allowed"
-              >
-                {addingLocation ? '...' : 'Toevoegen'}
+            </label>
+            {newLocation.trim() && (
+              <button type="submit" disabled={adding} className="h-10 px-3 text-base font-semibold text-wine">
+                Voeg toe
               </button>
-            </div>
-          </div>
+            )}
+          </form>
+        </Group>
+      </Section>
 
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full bg-red-900 hover:bg-red-800 disabled:bg-red-900/50 text-white font-semibold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
-          >
-            {saving ? 'Opslaan...' : saved ? 'Opgeslagen!' : 'Opslaan'}
-          </button>
-        </div>
-      </div>
-    </div>
+      <Group>
+        <button type="button" onClick={onLogout} className="w-full min-h-12 text-base text-danger active:bg-control">
+          Uitloggen
+        </button>
+      </Group>
+    </Screen>
   );
 }
