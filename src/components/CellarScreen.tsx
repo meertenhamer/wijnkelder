@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import type { Wine, WineType, WineLocation } from '../types/wine';
 import { Chevron, Group, Icon, Screen, SectionHeader, TypeDot, typeLabels } from './ui';
-import { drinkStatus } from '../utils/wine';
+import { drinkStatus, parseDrinkWindow } from '../utils/wine';
 
 type TypeFilter = 'alle' | WineType;
-type SortKey = 'recent' | 'naam' | 'jaar';
+type SortKey = 'recent' | 'naam' | 'jaar' | 'dronk';
 
 const SORT_LABELS: Record<SortKey, string> = {
   recent: 'Laatst toegevoegd',
   naam: 'Naam',
   jaar: 'Jaargang',
+  dronk: 'Op dronk (eerst drinken)',
 };
 
 const PREFS_KEY = 'wijnkelder_kelder_weergave';
@@ -77,6 +78,12 @@ export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScre
     const sorted = [...list];
     if (prefs.sort === 'naam') sorted.sort((a, b) => a.name.localeCompare(b.name, 'nl'));
     else if (prefs.sort === 'jaar') sorted.sort((a, b) => a.year - b.year || a.name.localeCompare(b.name, 'nl'));
+    else if (prefs.sort === 'dronk') {
+      // Eerst wat het eerst op moet: einde van het drinkvenster oplopend, onbekend achteraan
+      const end = (w: Wine) => parseDrinkWindow(w.bestBefore)?.to ?? Infinity;
+      const start = (w: Wine) => parseDrinkWindow(w.bestBefore)?.from ?? Infinity;
+      sorted.sort((a, b) => end(a) - end(b) || start(a) - start(b) || a.name.localeCompare(b.name, 'nl'));
+    }
     else sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return sorted;
   }, [base, typeFilter, search, prefs.sort]);
@@ -84,7 +91,8 @@ export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScre
   // Groepeer per locatie zodra er locaties in gebruik zijn (niet tijdens zoeken)
   const sections = useMemo(() => {
     const usesLocations = filtered.some((w) => w.location);
-    if (!usesLocations || search.trim()) return [{ title: null as string | null, wines: filtered }];
+    // Bij "eerst drinken" één doorlopende lijst, zodat de volgorde klopt
+    if (!usesLocations || search.trim() || prefs.sort === 'dronk') return [{ title: null as string | null, wines: filtered }];
     const order = [...locations.map((l) => l.name)];
     for (const w of filtered) if (w.location && !order.includes(w.location)) order.push(w.location);
     const result = order
@@ -93,7 +101,7 @@ export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScre
     const rest = filtered.filter((w) => !w.location);
     if (rest.length) result.push({ title: 'Zonder locatie', wines: rest });
     return result;
-  }, [filtered, locations, search]);
+  }, [filtered, locations, search, prefs.sort]);
 
   const chips: { value: TypeFilter; label: string }[] = [
     { value: 'alle', label: 'Alles' },
@@ -221,7 +229,7 @@ export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScre
             {section.title && <SectionHeader trailing={section.wines.length}>{section.title}</SectionHeader>}
             <Group>
               {section.wines.map((wine) => (
-                <WineRow key={wine.id} wine={wine} onClick={() => onOpenWine(wine)} />
+                <WineRow key={wine.id} wine={wine} showWindow={prefs.sort === 'dronk'} onClick={() => onOpenWine(wine)} />
               ))}
             </Group>
           </section>
@@ -231,8 +239,13 @@ export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScre
   );
 }
 
-function WineRow({ wine, onClick }: { wine: Wine; onClick: () => void }) {
-  const place = [wine.region, wine.country].filter(Boolean).join(', ') || wine.grapes;
+const STATUS_TEXT: Record<string, string> = { jong: 'nog te jong', 'op-dronk': 'op dronk', over: 'over hoogtepunt' };
+
+function WineRow({ wine, onClick, showWindow }: { wine: Wine; onClick: () => void; showWindow?: boolean }) {
+  const win = showWindow ? parseDrinkWindow(wine.bestBefore) : null;
+  const place = win
+    ? `${STATUS_TEXT[drinkStatus(wine)]} · ${win.from === win.to ? win.from : `${win.from}–${win.to}`}`
+    : [wine.region, wine.country].filter(Boolean).join(', ') || wine.grapes;
   return (
     <button
       type="button"
