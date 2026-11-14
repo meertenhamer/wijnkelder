@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { Wine, WineLocation, WineType } from '../types/wine';
 import { storage } from '../services/storage';
 import { fetchWineInfo, type WineInfo } from '../services/ai';
+import { parsePriceInput } from '../utils/wine';
 import { LocationRow } from './LocationRow';
 import { ErrorNote, Group, Section, Spinner, Stepper, TypeDot, inputClass, typeLabels } from './ui';
 
@@ -23,6 +24,7 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
   const [quantity, setQuantity] = useState(1);
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
+  const [price, setPrice] = useState('');
   const [info, setInfo] = useState<WineInfo | null>(null);
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -85,6 +87,7 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
       funFact: details.funFact,
       notes: notes.trim() || undefined,
       location: location || undefined,
+      price: parsePriceInput(price),
     });
     setSaving(false);
     if (saved) onSaved(saved);
@@ -166,6 +169,20 @@ export function AddWineSheet({ locations, onAddLocation, onCancel, onSaved }: Ad
                   <Stepper label="Aantal flessen" value={quantity} min={0} onChange={setQuantity} />
                 </div>
               </div>
+              <label className="flex items-center gap-3 min-h-12 px-4">
+                <span className="text-base shrink-0">Prijs per fles</span>
+                <span className="flex-1 flex items-center justify-end gap-1 text-base">
+                  <span className="text-muted">€</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="Claude zoekt op"
+                    className="w-32 bg-transparent text-right text-ink placeholder:text-muted/70 outline-none"
+                  />
+                </span>
+              </label>
               <LocationRow value={location} onChange={setLocation} locations={locations} onAddLocation={onAddLocation} />
               <label className="flex px-4 py-3">
                 <span className="sr-only">Notities</span>

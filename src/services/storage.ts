@@ -88,6 +88,11 @@ export const storage = {
     }
   },
 
+  /** Laat Claude de prijs per fles opzoeken; geeft de bijgewerkte wijn terug */
+  async lookupPrice(id: string): Promise<Wine> {
+    return api<Wine>(`/wines/${encodeURIComponent(id)}/price`, { method: 'POST' });
+  },
+
   // --- Locaties ---
 
   async getLocations(): Promise<WineLocation[]> {

@@ -38,6 +38,8 @@ interface WineInput {
   notes?: string;
   rating?: number;
   location?: string;
+  price?: number | null;
+  priceEstimated?: boolean;
 }
 
 interface DbWine {
@@ -56,6 +58,8 @@ interface DbWine {
   notes: string | null;
   rating: number | null;
   location: string | null;
+  price: number | null;
+  price_estimated: number;
   created_at: string;
 }
 
@@ -89,6 +93,8 @@ function dbToWine(w: DbWine) {
     notes: w.notes ?? undefined,
     rating: w.rating ?? undefined,
     location: w.location ?? undefined,
+    price: w.price ?? undefined,
+    priceEstimated: w.price != null && w.price_estimated === 1 ? true : undefined,
     createdAt: w.created_at,
   };
 }
@@ -120,7 +126,13 @@ function wineValues(w: WineInput) {
     str(w.notes),
     typeof w.rating === 'number' && w.rating >= 1 && w.rating <= 5 ? w.rating : null,
     str(w.location),
+    validPrice(w.price),
+    validPrice(w.price) != null && w.priceEstimated ? 1 : 0,
   ];
+}
+
+function validPrice(v: unknown): number | null {
+  return typeof v === 'number' && isFinite(v) && v >= 0 && v < 100000 ? Math.round(v * 100) / 100 : null;
 }
 
 async function readJson(request: Request): Promise<unknown> {
@@ -209,6 +221,74 @@ async function callAI(env: Env, provider: AiProvider, prompt: string): Promise<s
   return text;
 }
 
+function pricePrompt(w: DbWine, withSearch: boolean): string {
+  return `Wat kost deze wijn ongeveer per fles (0,75 l) bij Nederlandse wijnhandels of slijterijen?
+
+Naam: ${w.name}
+Jaar: ${w.year}
+${w.region || w.country ? `Herkomst: ${[w.region, w.country].filter(Boolean).join(', ')}` : ''}
+${w.grapes ? `Druif: ${w.grapes}` : ''}
+
+${withSearch ? 'Zoek online naar actuele prijzen. ' : ''}Geef een gangbare winkelprijs in euro's. Bestaat deze jaargang niet meer in de handel, schat dan op basis van recente jaargangen. Weet je het echt niet, geef dan null.
+
+Antwoord ALLEEN met JSON: {"price": 12.95}`;
+}
+
+function parsePrice(text: string): number | null {
+  const match = text.match(/\{[^{}]*"price"[^{}]*\}/);
+  if (!match) return null;
+  try {
+    return validPrice((JSON.parse(match[0]) as { price?: unknown }).price);
+  } catch {
+    return null;
+  }
+}
+
+/** Zoekt de prijs per fles op: met Claude (online zoeken) of anders een schatting via OpenAI */
+async function lookupPrice(env: Env, wine: DbWine): Promise<number | null> {
+  if (env.ANTHROPIC_API_KEY) {
+    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 90_000 });
+    const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: pricePrompt(wine, true) }];
+    try {
+      // Server-tools kunnen pauzeren (pause_turn); ga dan maximaal twee keer verder
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const response = await client.beta.messages.create({
+          model: 'claude-sonnet-5-5',
+          max_tokens: 16000,
+          output_config: { effort: 'low' },
+          betas: ['server-side-fallback-2026-07-01'],
+          fallbacks: 'default',
+          tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3, user_location: { type: 'approximate', country: 'NL' } }],
+          messages,
+        });
+        if (response.stop_reason === 'pause_turn') {
+          messages.push({ role: 'assistant', content: response.content });
+          continue;
+        }
+        const text = response.content
+          .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
+          .map((b) => b.text)
+          .join('');
+        return parsePrice(text);
+      }
+      return null;
+    } catch (err) {
+      if (err instanceof Anthropic.RateLimitError) {
+        throw new HttpError(503, 'Claude is even te druk bezet. Probeer het over een minuut opnieuw.');
+      }
+      if (err instanceof Anthropic.APIError) {
+        console.error('Claude prijs-opzoeken fout', err.status, err.message);
+        throw new HttpError(502, `Prijs opzoeken mislukt (${err.status ?? 'geen verbinding'}).`);
+      }
+      throw err;
+    }
+  }
+  if (env.OPENAI_API_KEY) {
+    return parsePrice(await callAI(env, 'openai', pricePrompt(wine, false)));
+  }
+  throw new HttpError(500, 'Er is geen AI-sleutel ingesteld op de server.');
+}
+
 async function handleApi(request: Request, env: Env, path: string): Promise<Response> {
   const user = await getUserEmail(request, env);
   if (!user) throw new HttpError(401, 'Niet ingelogd');
@@ -257,8 +337,8 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
       const newId = crypto.randomUUID();
       const row = await env.DB.prepare(
         `INSERT INTO wines (id, user_id, name, year, grapes, quantity, country, region, type,
-           best_before, taste_profile, pairing_advice, fun_fact, notes, rating, location)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           best_before, taste_profile, pairing_advice, fun_fact, notes, rating, location, price, price_estimated)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING *`
       )
         .bind(newId, user, ...wineValues(wine))
@@ -266,11 +346,12 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
       return json(dbToWine(row!), 201);
     }
 
-    if (id && method === 'PUT') {
+    if (id && !parts[3] && method === 'PUT') {
       const wine = validateWine(await readJson(request));
       const result = await env.DB.prepare(
         `UPDATE wines SET name = ?, year = ?, grapes = ?, quantity = ?, country = ?, region = ?, type = ?,
-           best_before = ?, taste_profile = ?, pairing_advice = ?, fun_fact = ?, notes = ?, rating = ?, location = ?
+           best_before = ?, taste_profile = ?, pairing_advice = ?, fun_fact = ?, notes = ?, rating = ?, location = ?,
+           price = ?, price_estimated = ?
          WHERE id = ? AND user_id = ?`
       )
         .bind(...wineValues(wine), id, user)
@@ -279,7 +360,20 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
       return json({ ok: true });
     }
 
-    if (id && method === 'DELETE') {
+    if (id && parts[3] === 'price' && method === 'POST') {
+      const wine = await env.DB.prepare('SELECT * FROM wines WHERE id = ? AND user_id = ?').bind(id, user).first<DbWine>();
+      if (!wine) throw new HttpError(404, 'Wijn niet gevonden');
+      const price = await lookupPrice(env, wine);
+      if (price == null) throw new HttpError(404, 'Claude kon geen prijs vinden voor deze wijn.');
+      const updated = await env.DB.prepare(
+        'UPDATE wines SET price = ?, price_estimated = 1 WHERE id = ? AND user_id = ? RETURNING *'
+      )
+        .bind(price, id, user)
+        .first<DbWine>();
+      return json(dbToWine(updated!));
+    }
+
+    if (id && !parts[3] && method === 'DELETE') {
       await env.DB.prepare('DELETE FROM wines WHERE id = ? AND user_id = ?').bind(id, user).run();
       return json({ ok: true });
     }

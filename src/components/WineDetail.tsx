@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Wine, WineType, WineLocation } from '../types/wine';
 import { storage } from '../services/storage';
+import { formatPrice, parseDrinkWindow, parsePriceInput, priceInputValue } from '../utils/wine';
 import { LocationRow } from './LocationRow';
 import { ErrorNote, Group, Icon, Section, Spinner, Stars, Stepper, TypeDot, inputClass, typeLabels } from './ui';
 
@@ -11,14 +12,9 @@ interface WineDetailProps {
   onBack: () => void;
   onUpdate: (wine: Wine) => void;
   onDelete: (id: string) => void;
-}
-
-/** Leest "2024-2028" (of "2024 – 2028", "vanaf 2026") als jaartallen */
-export function parseDrinkWindow(text?: string): { from: number; to: number } | null {
-  if (!text) return null;
-  const years = text.match(/(19|20)\d{2}/g)?.map(Number);
-  if (!years?.length) return null;
-  return { from: Math.min(...years), to: Math.max(...years) };
+  /** true zolang Claude de prijs van deze wijn opzoekt */
+  pricing: boolean;
+  onLookupPrice: () => void;
 }
 
 function DrinkWindow({ text }: { text: string }) {
@@ -73,7 +69,7 @@ function pairingChips(text?: string): string[] | null {
   return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1));
 }
 
-export function WineDetail({ wine, locations, onAddLocation, onBack, onUpdate, onDelete }: WineDetailProps) {
+export function WineDetail({ wine, locations, onAddLocation, onBack, onUpdate, onDelete, pricing, onLookupPrice }: WineDetailProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(wine);
   const [notes, setNotes] = useState(wine.notes || '');
@@ -181,6 +177,23 @@ export function WineDetail({ wine, locations, onAddLocation, onBack, onUpdate, o
                 </span>
               </div>
               <Stepper label="Aantal flessen" value={wine.quantity} onChange={(quantity) => save({ quantity })} />
+            </div>
+            <div className="flex items-center justify-between gap-3 min-h-12 px-4">
+              <span className="text-base">Prijs per fles</span>
+              {pricing ? (
+                <span className="flex items-center gap-2 text-[15px] text-muted"><Spinner />Claude zoekt op…</span>
+              ) : wine.price != null ? (
+                <span className="flex items-center gap-2 text-[15px]">
+                  <span className="tabular-nums">{formatPrice(wine.price)}</span>
+                  {wine.priceEstimated && (
+                    <button type="button" onClick={onLookupPrice} className="text-[13px] text-muted underline decoration-faint underline-offset-2" aria-label="Geschatte prijs opnieuw opzoeken">
+                      geschat
+                    </button>
+                  )}
+                </span>
+              ) : (
+                <button type="button" onClick={onLookupPrice} className="h-10 text-[15px] text-wine">Zoek prijs op</button>
+              )}
             </div>
             <LocationRow
               value={wine.location || ''}
@@ -319,6 +332,21 @@ function EditFields({ draft, set }: {
         {text('region', 'Regio')}
         {text('country', 'Land')}
         {text('bestBefore', 'Op dronk', 'bijv. 2025-2030')}
+        <label className="flex items-center gap-3 min-h-12 px-4">
+          <span className="w-24 shrink-0 text-base">Prijs</span>
+          <span className="text-base text-muted">€</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            defaultValue={priceInputValue(draft.price)}
+            placeholder="per fles"
+            onChange={(e) => {
+              set('price')(parsePriceInput(e.target.value));
+              set('priceEstimated')(false);
+            }}
+            className={inputClass}
+          />
+        </label>
       </Group>
       {area('tasteProfile', 'Smaak')}
       {area('pairingAdvice', 'Past bij')}

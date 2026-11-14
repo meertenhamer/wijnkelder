@@ -20,6 +20,8 @@ function App() {
   // Geopende wijn (scherm dat over de tabbladen heen schuift) en het toevoeg-venster
   const [openWineId, setOpenWineId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  // Wijnen waarvan Claude op dit moment de prijs opzoekt
+  const [pricing, setPricing] = useState<Set<string>>(new Set());
 
   // Inloggen gebeurt door Cloudflare Access voordat de app laadt.
   // Hier halen we alleen op wie er is ingelogd, plus de wijnen en locaties.
@@ -70,11 +72,30 @@ function App() {
     setOpenWineId(null);
   };
 
+  const lookupPrice = async (id: string, silent = false) => {
+    setPricing((prev) => new Set(prev).add(id));
+    try {
+      const updated = await storage.lookupPrice(id);
+      handleUpdateWine(updated);
+    } catch (err) {
+      console.error('Prijs opzoeken mislukt:', err);
+      if (!silent) alert(err instanceof Error ? err.message : 'Prijs opzoeken is mislukt.');
+    } finally {
+      setPricing((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
   const handleSaved = (wine: Wine) => {
     setWines((prev) => [wine, ...prev]);
     setAdding(false);
     setTab('kelder');
     setOpenWineId(wine.id);
+    // Geen prijs ingevuld? Laat Claude hem op de achtergrond opzoeken
+    if (wine.price == null) lookupPrice(wine.id, true);
   };
 
   const handleLogout = () => {
@@ -119,6 +140,8 @@ function App() {
           onBack={() => setOpenWineId(null)}
           onUpdate={handleUpdateWine}
           onDelete={handleDeleteWine}
+          pricing={pricing.has(openWine.id)}
+          onLookupPrice={() => lookupPrice(openWine.id)}
         />
       ) : (
         <>

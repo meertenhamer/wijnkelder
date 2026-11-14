@@ -25,6 +25,10 @@ export interface Wine {
   // Opslaglocatie in de kelder (bijv. Klimaatkast, Wijnrek)
   location?: string;
 
+  // Prijs per fles in euro's; priceEstimated = opgezocht door Claude
+  price?: number;
+  priceEstimated?: boolean;
+
   createdAt: string;
 }
 

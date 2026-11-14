@@ -39,14 +39,15 @@ Wine data flows top-down from `App.tsx`. When a component modifies data it calls
 
 ### Database Tables (D1, schema in `migrations/`)
 
-- `wines` — per-user wine records (`user_id` = email)
+- `wines` — per-user wine records (`user_id` = email), incl. `price` and `price_estimated`
 - `wine_locations` — per-user storage locations
 - `user_settings` — per-user `ai_provider`
 
 ### Key Type: `Wine`
 
 Defined in `src/types/wine.ts`. Fields split into:
-- **User-provided:** `name`, `year`, `grapes`, `quantity`, `notes`, `rating`
+- **User-provided:** `name`, `year`, `grapes`, `quantity`, `notes`, `rating`, `location`, `price` (per bottle, EUR)
+- **Price lookup:** if no price is entered, `POST /api/wines/:id/price` lets Claude (Sonnet 5.5 + web search) find it; such prices get `priceEstimated: true`
 - **AI-generated:** `country`, `region`, `type`, `bestBefore`, `tasteProfile`, `pairingAdvice`
 - Wine `type` is one of: `'rood' | 'wit' | 'rosé' | 'bruisend'`
 
@@ -56,4 +57,5 @@ Defined in `src/types/wine.ts`. Fields split into:
 - iOS-style UI: large titles, grouped lists (`Group`/`Row`/`Section` in `src/components/ui.tsx`), bottom tab bar, line icons (`Icon` in `ui.tsx`), no emoji
 - Tailwind CSS 4 with design tokens in `src/index.css` (`@theme`): `ground`, `surface`, `ink`, `muted`, `line`, `control`, one accent `wine` (#7F1D2D); wine types as dots/bars only: `type-rood`, `type-wit`, `type-rose`, `type-bruisend`
 - Mobile-first with `safe-area-inset` padding for notched devices
+- Drink-window helpers (`parseDrinkWindow`, `drinkStatus`) and price formatting live in `src/utils/wine.ts`
 - `WineDetail` is a pushed screen: quantity, location, rating and notes save immediately; "Wijzig" edits the other fields

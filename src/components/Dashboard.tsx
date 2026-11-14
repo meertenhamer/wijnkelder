@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Wine, WineType } from '../types/wine';
 import { Group, Screen, Section, typeBarClass, typeLabels, TypeDot } from './ui';
+import { formatPrice } from '../utils/wine';
 
 interface DashboardProps {
   wines: Wine[];
@@ -82,6 +83,14 @@ export function Dashboard({ wines, onOpenWine }: DashboardProps) {
   const oldest = years.length ? Math.min(...years) : '–';
   const newest = years.length ? Math.max(...years) : '–';
 
+  const stock = wines.filter((w) => w.quantity > 0);
+  const priced = stock.filter((w) => w.price != null);
+  const value = priced.reduce((sum, w) => sum + (w.price ?? 0) * w.quantity, 0);
+  const pricedBottles = priced.reduce((sum, w) => sum + w.quantity, 0);
+  const unpricedBottles = stock.reduce((sum, w) => sum + w.quantity, 0) - pricedBottles;
+  const estimated = priced.some((w) => w.priceEstimated);
+  const priciest = [...priced].sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, 3);
+
   const byType = countBy(wines.map((w) => w.type));
   const countries = countBy(wines.map((w) => w.country)).slice(0, 5);
   const regions = countBy(wines.map((w) => w.region)).slice(0, 5);
@@ -97,6 +106,34 @@ export function Dashboard({ wines, onOpenWine }: DashboardProps) {
         <Stat value={avg} label={`gem. beoordeling (${rated.length})`} className="border-r border-line" />
         <Stat value={<>{oldest}<span className="text-[17px] font-medium text-muted"> – {newest}</span></>} label="jaargangen" />
       </div>
+
+      {priced.length > 0 && (
+        <Section
+          title="Waarde"
+          footer={estimated ? 'Prijzen die Claude heeft opgezocht zijn schattingen van de winkelprijs.' : undefined}
+        >
+          <Group>
+            <div className="px-4 py-3.5 flex flex-col gap-0.5">
+              <span className="text-[28px] leading-8 font-bold tracking-tight tabular-nums">{formatPrice(value, true)}</span>
+              <span className="text-sm text-muted">
+                waarde van je voorraad · gemiddeld {formatPrice(pricedBottles ? value / pricedBottles : 0)} per fles
+                {unpricedBottles > 0 && ` · ${unpricedBottles} ${unpricedBottles === 1 ? 'fles' : 'flessen'} zonder prijs`}
+              </span>
+            </div>
+            {priciest.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => onOpenWine(w)}
+                className="w-full flex justify-between items-center gap-3 min-h-12 px-4 text-left text-[15px] active:bg-control"
+              >
+                <span className="min-w-0 truncate">{w.name} <span className="text-muted">{w.year}</span></span>
+                <span className="tabular-nums shrink-0">{formatPrice(w.price ?? 0)}</span>
+              </button>
+            ))}
+          </Group>
+        </Section>
+      )}
 
       <Section title="Soort">
         <div className="bg-surface rounded-[14px] p-4 flex flex-col gap-3.5">

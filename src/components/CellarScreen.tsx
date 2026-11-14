@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Wine, WineType, WineLocation } from '../types/wine';
 import { Chevron, Group, Icon, Screen, SectionHeader, TypeDot, typeLabels } from './ui';
+import { drinkStatus } from '../utils/wine';
 
 type TypeFilter = 'alle' | WineType;
 type SortKey = 'recent' | 'naam' | 'jaar';
@@ -40,6 +41,7 @@ interface CellarScreenProps {
 
 export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScreenProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('alle');
+  const [onlyReady, setOnlyReady] = useState(false);
   const [search, setSearch] = useState('');
   const [prefs, setPrefs] = useState(loadPrefs);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,7 +54,9 @@ export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScre
 
   const inStock = wines.filter((w) => w.quantity > 0);
   const bottles = wines.reduce((sum, w) => sum + w.quantity, 0);
-  const base = prefs.showEmpty ? wines : inStock;
+  const stockBase = prefs.showEmpty ? wines : inStock;
+  const readyCount = stockBase.filter((w) => drinkStatus(w) === 'op-dronk').length;
+  const base = onlyReady ? stockBase.filter((w) => drinkStatus(w) === 'op-dronk') : stockBase;
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { alle: base.length };
@@ -166,6 +170,19 @@ export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScre
           />
         </label>
         <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-0.5 [scrollbar-width:none]">
+          <button
+            type="button"
+            aria-pressed={onlyReady}
+            onClick={() => setOnlyReady(!onlyReady)}
+            className={`shrink-0 h-[34px] px-3 rounded-full text-sm font-semibold flex items-center gap-1.5 ${
+              onlyReady ? 'bg-ok text-white' : 'bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-edge)]'
+            }`}
+          >
+            {onlyReady ? <Icon.Check size={15} /> : <span aria-hidden="true" className="w-2 h-2 rounded-full bg-ok" />}
+            Op dronk
+            <span className={`font-medium ${onlyReady ? 'text-white/80' : 'text-muted'}`}>{readyCount}</span>
+          </button>
+          <span aria-hidden="true" className="shrink-0 w-px my-1.5 bg-edge" />
           {chips.map((chip) => {
             const on = typeFilter === chip.value;
             return (
@@ -194,6 +211,7 @@ export function CellarScreen({ wines, locations, onOpenWine, onAdd }: CellarScre
           <p className="text-[15px] text-muted mt-1">
             {wines.length === 0
               ? 'Tik op + om je eerste wijn toe te voegen.'
+              : onlyReady ? 'Geen wijnen die nu op dronk zijn met deze filters.'
               : prefs.showEmpty ? 'Probeer een andere zoekterm of soort.' : 'Lege flessen zie je via het sorteermenu.'}
           </p>
         </div>
